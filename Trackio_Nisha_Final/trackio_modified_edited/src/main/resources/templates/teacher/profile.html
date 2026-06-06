@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>My Profile — Trackio-DIU</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('profile')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>My Profile</h1>
+        <p>Your faculty identity and contact details</p>
+      </div>
+      <div class="topbar-actions">
+        <a th:href="@{/teacher/profile/edit}" class="btn btn-primary">
+          <i class="fas fa-pen"></i>&nbsp; Edit Profile
+        </a>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">
+        ✓ &nbsp;<span th:text="${success}"></span>
+      </div>
+
+      <div class="profile-hero" style="margin-bottom:28px">
+        <div class="profile-avatar-lg"
+             th:with="hasPhoto=${teacher.teacherPhotoUrl != null and !#strings.isEmpty(teacher.teacherPhotoUrl)}"
+             th:style="${hasPhoto} ? |background-image:url('${teacher.teacherPhotoUrl}');background-size:cover;background-position:center;color:transparent| : ''">
+          <span th:if="${!hasPhoto}" th:text="${teacher.teacherName.substring(0,1)}">T</span>
+        </div>
+        <div class="profile-info">
+          <h2 th:text="${teacher.teacherName}">Name</h2>
+          <p>
+            <span th:text="${teacher.teacherDesignation != null ? teacher.teacherDesignation : 'Faculty'}">Lecturer</span>
+            <span th:if="${teacher.teacherDepartment}"> · <span th:text="${teacher.teacherDepartment}">Dept</span></span>
+          </p>
+          <div class="profile-meta">
+            <div class="profile-meta-item" th:if="${teacher.teacherEmail}">✉ <span th:text="${teacher.teacherEmail}"></span></div>
+            <div class="profile-meta-item" th:if="${teacher.teacherPhone}">📞 <span th:text="${teacher.teacherPhone}"></span></div>
+            <div class="profile-meta-item" th:if="${teacher.teacherOffice}">🏛 <span th:text="${teacher.teacherOffice}"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">Contact Information</span></div>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value" th:text="${teacher.teacherEmail != null ? teacher.teacherEmail : 'Not provided'}">Email</div></div>
+          <div class="detail-item"><div class="detail-label">Phone</div><div class="detail-value" th:text="${teacher.teacherPhone != null ? teacher.teacherPhone : 'Not provided'}">Phone</div></div>
+          <div class="detail-item"><div class="detail-label">Address</div><div class="detail-value" th:text="${teacher.teacherAddress != null ? teacher.teacherAddress : 'Not provided'}">Address</div></div>
+          <div class="detail-item"><div class="detail-label">Office</div><div class="detail-value" th:text="${teacher.teacherOffice != null ? teacher.teacherOffice : 'Not provided'}">Office</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">Professional Details</span></div>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">Department</div><div class="detail-value" th:text="${teacher.teacherDepartment != null ? teacher.teacherDepartment : 'Not provided'}">Dept</div></div>
+          <div class="detail-item"><div class="detail-label">Designation</div><div class="detail-value" th:text="${teacher.teacherDesignation != null ? teacher.teacherDesignation : 'Not provided'}">Designation</div></div>
+          <div class="detail-item"><div class="detail-label">Specialization</div><div class="detail-value" th:text="${teacher.teacherSpecialization != null ? teacher.teacherSpecialization : 'Not provided'}">Spec</div></div>
+        </div>
+        <div th:if="${teacher.teacherBio}" style="margin-top:18px">
+          <div class="detail-label">Bio</div>
+          <p style="margin-top:8px;line-height:1.6" th:text="${teacher.teacherBio}">Bio text...</p>
+        </div>
+      </div>
+
+      <div class="card" th:if="${teacher.teacherLinkedinUrl != null or teacher.teacherWebsite != null or teacher.teacherGithubUrl != null}">
+        <div class="card-header"><span class="card-title">Online Presence</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+          <a th:if="${teacher.teacherLinkedinUrl}" th:href="${teacher.teacherLinkedinUrl}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fab fa-linkedin"></i>&nbsp; LinkedIn
+          </a>
+          <a th:if="${teacher.teacherWebsite}" th:href="${teacher.teacherWebsite}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fas fa-globe"></i>&nbsp; Website
+          </a>
+          <a th:if="${teacher.teacherGithubUrl}" th:href="${teacher.teacherGithubUrl}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fab fa-github"></i>&nbsp; GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

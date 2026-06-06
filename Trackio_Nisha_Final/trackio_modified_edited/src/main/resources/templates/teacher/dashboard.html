@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Teacher Dashboard</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('dashboard')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Teacher Dashboard</h1>
+        <p>Welcome, <span th:text="${teacher.teacherName}">Teacher</span> · <span th:text="${teacher.teacherDepartment}">Dept</span></p>
+      </div>
+      <div class="topbar-actions">
+        <span style="font-size:0.8rem;color:var(--diu-gray)" th:text="${teacher.teacherSpecialization}"></span>
+      </div>
+    </div>
+    <div class="content-area">
+
+      <!-- Teacher Profile Strip -->
+      <div class="profile-hero" style="margin-bottom:28px">
+        <div class="profile-avatar-lg"
+             th:with="hasPhoto=${teacher.teacherPhotoUrl != null and !#strings.isEmpty(teacher.teacherPhotoUrl)}"
+             th:style="${hasPhoto} ? |background-image:url('${teacher.teacherPhotoUrl}');background-size:cover;background-position:center;color:transparent| : ''">
+          <span th:if="${!hasPhoto}" th:text="${teacher.teacherName.substring(0,1)}">T</span>
+        </div>
+        <div class="profile-info">
+          <h2 th:text="${teacher.teacherName}">Name</h2>
+          <p th:text="${teacher.teacherDepartment + ' · ' + teacher.teacherSpecialization}">Dept</p>
+          <div class="profile-meta">
+            <div class="profile-meta-item" th:if="${teacher.teacherEmail}">✉ <span th:text="${teacher.teacherEmail}"></span></div>
+            <div class="profile-meta-item" th:if="${teacher.teacherPhone}">📞 <span th:text="${teacher.teacherPhone}"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending skills banner -->
+      <div th:if="${pendingSkillCount != null and pendingSkillCount > 0}"
+           class="alert"
+           style="background:rgba(247,212,136,0.08);border:1px solid rgba(247,212,136,0.3);border-left:3px solid #f7d488;color:#f7d488;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:14px 18px;border-radius:8px">
+        <span>
+          ⏳ &nbsp;You have <strong th:text="${pendingSkillCount}">0</strong>
+          student skill<span th:if="${pendingSkillCount > 1}">s</span> awaiting verification.
+        </span>
+        <a th:href="@{/teacher/skills}" class="btn btn-secondary btn-sm">Review Now →</a>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">◉</div>
+          <div class="stat-value" th:text="${studentCount}">0</div>
+          <div class="stat-label">Students</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">◆</div>
+          <div class="stat-value" th:text="${skillCount}">0</div>
+          <div class="stat-label">Student Skills</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">◈</div>
+          <div class="stat-value" th:text="${projectCount}">0</div>
+          <div class="stat-label">Projects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✦</div>
+          <div class="stat-value" th:text="${certCount}">0</div>
+          <div class="stat-label">Certifications</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">★</div>
+          <div class="stat-value" th:text="${achievementCount}">0</div>
+          <div class="stat-label">Achievements</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚙</div>
+          <div class="stat-value" th:text="${internshipCount}">0</div>
+          <div class="stat-label">Internships</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <!-- Recent Students -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Students</span>
+            <a th:href="@{/teacher/students}" class="btn btn-secondary btn-sm">View All</a>
+          </div>
+          <div th:each="s : ${recentStudents}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div class="user-avatar" style="width:36px;height:36px;font-size:13px" th:text="${s.name != null and !#strings.isEmpty(s.name) ? s.name.substring(0,1) : 'S'}">S</div>
+            <div style="min-width:0">
+              <div style="font-weight:600;font-size:0.875rem;color:var(--text-primary)" th:text="${s.name}">Name</div>
+              <div style="font-size:0.75rem;color:var(--diu-gray)" th:text="${s.department + ' · ' + s.batch}">Dept</div>
+            </div>
+            <a th:href="@{/teacher/students/view/{id}(id=${s.id})}" class="btn btn-secondary btn-sm" style="margin-left:auto">View</a>
+          </div>
+        </div>
+
+        <!-- Recent Projects -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Projects</span>
+            <a th:href="@{/teacher/projects}" class="btn btn-secondary btn-sm">View All</a>
+          </div>
+          <div th:each="p : ${recentProjects}" style="padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-weight:600;font-size:0.875rem;color:var(--text-primary)" th:text="${p.title}">Title</div>
+                <div style="font-size:0.75rem;color:var(--diu-gray);margin-top:2px" th:text="${(p.student != null ? p.student.name : 'Unknown') + ' · ' + (p.courseName != null ? p.courseName : '—')}">Info</div>
+              </div>
+              <span class="badge"
+                    th:classappend="${p.projectType.name().toLowerCase() == 'capstone'} ? 'badge-capstone' : (${p.projectType.name().toLowerCase() == 'project'} ? 'badge-project' : 'badge-assignment')"
+                    th:text="${p.projectType}">Type</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header"><span class="card-title">Quick Actions</span></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a th:href="@{/teacher/students/new}" class="btn btn-primary">+ Add Student</a>
+          <a th:href="@{/teacher/skills/new}" class="btn btn-primary">+ Add Skill</a>
+          <a th:href="@{/teacher/projects/new}" class="btn btn-primary">+ Add Project</a>
+          <a th:href="@{/teacher/skill-mappings/new}" class="btn btn-primary">+ Map Skill</a>
+          <a th:href="@{/teacher/reports}" class="btn btn-secondary">▤ Generate Reports</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

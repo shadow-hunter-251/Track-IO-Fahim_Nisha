@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>AI Job Finder — Trackio-DIU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <style>
+    .main-content { padding: 0 !important; overflow: hidden; }
+    .topbar       { display: none !important; }
+
+    .ai-shell {
+      display: flex; flex-direction: column; height: 100vh;
+      background: var(--ai-bg); position: relative; overflow: hidden;
+      --ai-bg:          #f0f2f7;
+      --ai-surface:     #ffffff;
+      --ai-surface2:    #f7f8fc;
+      --ai-border:      rgba(3,78,162,0.12);
+      --ai-text:        #1a1d23;
+      --ai-text-muted:  #6b7280;
+      --ai-text-dim:    #9ca3af;
+      --ai-user-bubble: linear-gradient(135deg,#034EA2 0%,#1565C0 100%);
+      --ai-bot-bg:      #ffffff;
+      --ai-accent:      #034EA2;
+      --ai-green:       #39B54A;
+      --ai-header-bg:   linear-gradient(135deg,#022f66 0%,#034EA2 60%,#0a7a3c 100%);
+    }
+    [data-theme="dark"] .ai-shell {
+      --ai-bg:          #0d1117;
+      --ai-surface:     #161b27;
+      --ai-surface2:    #1e2433;
+      --ai-border:      rgba(255,255,255,0.07);
+      --ai-text:        #e2e8f0;
+      --ai-text-muted:  #8892a4;
+      --ai-text-dim:    #4b5563;
+      --ai-bot-bg:      #161b27;
+      --ai-header-bg:   linear-gradient(135deg,#060a14 0%,#0d1428 60%,#061a0e 100%);
+    }
+
+    /* ── Header ── */
+    .ai-header {
+      flex-shrink: 0; background: var(--ai-header-bg);
+      padding: 18px 28px 20px; position: relative; overflow: hidden;
+    }
+    .ai-header::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(57,181,74,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 10% 50%, rgba(255,255,255,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .ai-header::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent 0%, rgba(57,181,74,0.8) 30%, rgba(3,78,162,0.9) 60%, rgba(57,181,74,0.6) 85%, transparent 100%);
+    }
+    .ai-header-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 18px; }
+    .ai-logo-wrap {
+      width: 56px; height: 56px;
+      background: rgba(255,255,255,0.10);
+      border: 1.5px solid rgba(255,255,255,0.20);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+    }
+    .ai-header-text { flex: 1; }
+    .ai-header-title {
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.18rem;
+      font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 3px;
+    }
+    .ai-header-sub {
+      font-size: 0.78rem; color: rgba(255,255,255,0.62);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ai-online-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(57,181,74,0.20); border: 1px solid rgba(57,181,74,0.35);
+      border-radius: 20px; padding: 2px 8px; font-size: 0.70rem;
+      color: #6de882; font-weight: 600;
+    }
+    .ai-online-dot {
+      width: 6px; height: 6px; background: #4ade80; border-radius: 50%;
+      box-shadow: 0 0 6px #4ade80; animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .ai-caps { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .ai-cap {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 20px; padding: 3px 10px; font-size: 0.71rem;
+      color: rgba(255,255,255,0.72); font-weight: 500; backdrop-filter: blur(4px);
+    }
+
+    /* ── Skills strip ── */
+    .skills-strip {
+      flex-shrink: 0;
+      background: var(--ai-surface);
+      border-bottom: 1px solid var(--ai-border);
+      padding: 10px 28px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .skills-strip-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--ai-text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+    }
+    .skill-pill {
+      background: rgba(3,78,162,0.08); border: 1px solid rgba(3,78,162,0.18);
+      border-radius: 20px; padding: 3px 10px;
+      font-size: 0.75rem; font-weight: 600; color: var(--ai-accent);
+    }
+    [data-theme="dark"] .skill-pill {
+      background: rgba(91,158,240,0.12); border-color: rgba(91,158,240,0.25); color: #5b9ef0;
+    }
+    .skills-strip-none {
+      font-size: 0.78rem; color: var(--ai-text-dim); font-style: italic;
+    }
+
+    /* ── Messages ── */
+    .ai-messages { flex: 1; overflow-y: auto; padding: 0; scroll-behavior: smooth; }
+    .ai-messages::-webkit-scrollbar { width: 4px; }
+    .ai-messages::-webkit-scrollbar-thumb { background: rgba(3,78,162,0.2); border-radius: 4px; }
+    [data-theme="dark"] .ai-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+
+    /* ── Welcome ── */
+    .ai-welcome {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100%;
+      padding: 36px 24px 20px; text-align: center;
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+    .ai-welcome-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(3,78,162,0.08); border: 1px solid rgba(3,78,162,0.18);
+      border-radius: 20px; padding: 5px 14px;
+      font-size: 0.75rem; color: var(--ai-accent); font-weight: 600;
+      margin-bottom: 18px; letter-spacing: 0.02em;
+    }
+    [data-theme="dark"] .ai-welcome-badge {
+      background: rgba(91,158,240,0.12); border-color: rgba(91,158,240,0.25); color: #5b9ef0;
+    }
+    .ai-welcome h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.75rem;
+      font-weight: 800; color: var(--ai-text); letter-spacing: -0.03em;
+      line-height: 1.2; margin-bottom: 12px; max-width: 420px;
+    }
+    .ai-welcome p {
+      font-size: 0.91rem; color: var(--ai-text-muted); line-height: 1.7;
+      max-width: 400px; margin-bottom: 28px;
+    }
+    .ai-suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 540px; }
+    .ai-suggestion {
+      background: var(--ai-surface); border: 1px solid var(--ai-border);
+      border-radius: 14px; padding: 14px 16px; cursor: pointer;
+      text-align: left; transition: all 0.18s ease;
+      box-shadow: 0 1px 6px rgba(3,78,162,0.05);
+    }
+    .ai-suggestion:hover {
+      border-color: var(--ai-accent); background: rgba(3,78,162,0.04);
+      transform: translateY(-2px); box-shadow: 0 4px 16px rgba(3,78,162,0.12);
+    }
+    [data-theme="dark"] .ai-suggestion:hover { border-color: #5b9ef0; background: rgba(91,158,240,0.08); }
+    .ai-suggestion-icon { font-size: 1.1rem; margin-bottom: 6px; display: block; }
+    .ai-suggestion-title { font-size: 0.82rem; font-weight: 700; color: var(--ai-text); margin-bottom: 2px; }
+    .ai-suggestion-desc  { font-size: 0.74rem; color: var(--ai-text-muted); line-height: 1.5; }
+
+    /* ── Message rows ── */
+    .ai-row { display: flex; justify-content: center; padding: 6px 0; animation: msgIn 0.2s ease; }
+    @keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .ai-row-inner { width: 100%; max-width: 760px; padding: 10px 28px; display: flex; gap: 14px; align-items: flex-start; }
+    .ai-row.user-row .ai-row-inner { flex-direction: row-reverse; }
+    .ai-row.user-row .ai-msg-content { align-items: flex-end; }
+    .ai-row.bot-row { background: var(--ai-surface2); border-top: 1px solid var(--ai-border); border-bottom: 1px solid var(--ai-border); }
+    .ai-avatar { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.76rem; }
+    .ai-avatar.bot { background: linear-gradient(135deg,#022f66 0%,#034EA2 50%,#0a5e30 100%); box-shadow: 0 2px 10px rgba(3,78,162,0.3); }
+    .ai-avatar.user { background: linear-gradient(135deg,#4f46e5,#7c3aed); color: white; box-shadow: 0 2px 10px rgba(79,70,229,0.3); }
+    .ai-msg-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .ai-msg-label { font-size: 0.70rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ai-text-dim); margin-bottom: 5px; }
+    .ai-user-bubble {
+      background: var(--ai-user-bubble); color: white; padding: 10px 16px;
+      border-radius: 14px 4px 14px 14px; font-size: 0.90rem; line-height: 1.65;
+      max-width: 78%; word-break: break-word; box-shadow: 0 3px 12px rgba(3,78,162,0.25);
+    }
+    .ai-bot-text { font-size: 0.92rem; line-height: 1.75; color: var(--ai-text); padding-right: 12px; }
+    .ai-bot-text h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.97rem; font-weight: 700;
+      color: var(--ai-accent); margin: 18px 0 6px; padding-bottom: 5px;
+      border-bottom: 1.5px solid var(--ai-border); display: flex; align-items: center; gap: 6px;
+    }
+    [data-theme="dark"] .ai-bot-text h2 { color: #5b9ef0; border-bottom-color: rgba(91,158,240,0.2); }
+    .ai-bot-text h2:first-child { margin-top: 0; }
+    .ai-bot-text h3 { font-size: 0.90rem; font-weight: 700; color: var(--ai-text); margin: 12px 0 4px; }
+    .ai-bot-text p  { margin: 0 0 9px; }
+    .ai-bot-text ul, .ai-bot-text ol { margin: 4px 0 10px 20px; padding: 0; line-height: 1.8; }
+    .ai-bot-text li { margin-bottom: 4px; }
+    .ai-bot-text strong { font-weight: 700; color: var(--ai-text); }
+    .ai-bot-text em { font-style: italic; color: var(--ai-text-muted); }
+    .ai-bot-text code {
+      background: rgba(3,78,162,0.07); border: 1px solid rgba(3,78,162,0.12);
+      border-radius: 5px; padding: 1px 7px;
+      font-family: 'SF Mono','Fira Code',monospace; font-size: 0.84rem;
+    }
+    [data-theme="dark"] .ai-bot-text code { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
+
+    /* Match badges */
+    .match-badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:20px; font-weight:700; font-size:0.80rem; margin:0 2px; }
+    .match-strong { background:#dcfce7; color:#16a34a; border:1px solid #86efac; }
+    .match-partial { background:#fef3c7; color:#d97706; border:1px solid #fcd34d; }
+    .match-low    { background:#fde8e8; color:#dc2626; border:1px solid #fca5a5; }
+    [data-theme="dark"] .match-strong { background:rgba(22,163,74,0.15); color:#4ade80; border-color:rgba(74,222,128,0.3); }
+    [data-theme="dark"] .match-partial { background:rgba(217,119,6,0.15); color:#fbbf24; border-color:rgba(251,191,36,0.3); }
+    [data-theme="dark"] .match-low    { background:rgba(220,38,38,0.15); color:#f87171; border-color:rgba(248,113,113,0.3); }
+
+    /* Stream cursor */
+    .stream-cursor { display:inline-block; width:2px; height:1.05em; background:var(--ai-accent); margin-left:3px; animation:blink 0.8s step-end infinite; vertical-align:text-bottom; border-radius:1px; }
+    [data-theme="dark"] .stream-cursor { background:#5b9ef0; }
+    @keyframes blink { 50%{opacity:0} }
+
+    /* Typing dots */
+    .typing-dots { display:flex; gap:5px; padding:8px 0; }
+    .typing-dots span { width:8px; height:8px; background:var(--ai-text-dim); border-radius:50%; animation:tdot 1.4s ease infinite; }
+    .typing-dots span:nth-child(2){animation-delay:.2s}
+    .typing-dots span:nth-child(3){animation-delay:.4s}
+    @keyframes tdot{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+
+    /* ── Input area ── */
+    .ai-input-area { flex-shrink:0; padding:14px 24px 18px; background:var(--ai-bg); border-top:1px solid var(--ai-border); }
+    .ai-input-card {
+      max-width:760px; margin:0 auto;
+      background:var(--ai-surface); border:1.5px solid var(--ai-border);
+      border-radius:18px; overflow:hidden; transition:border-color 0.2s,box-shadow 0.2s;
+      box-shadow:0 2px 16px rgba(3,78,162,0.06),0 1px 4px rgba(0,0,0,0.04);
+    }
+    .ai-input-card:focus-within { border-color:rgba(3,78,162,0.45); box-shadow:0 4px 24px rgba(3,78,162,0.12); }
+    [data-theme="dark"] .ai-input-card { box-shadow:0 2px 16px rgba(0,0,0,0.3); }
+    [data-theme="dark"] .ai-input-card:focus-within { border-color:rgba(91,158,240,0.45); box-shadow:0 4px 24px rgba(91,158,240,0.12); }
+    .ai-meta { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid var(--ai-border); }
+    .ai-meta input { padding:9px 15px; background:transparent; border:none; font-size:0.82rem; color:var(--ai-text); outline:none; font-family:inherit; }
+    .ai-meta input:first-child { border-right:1px solid var(--ai-border); }
+    .ai-meta input::placeholder { color:var(--ai-text-dim); }
+    .ai-compose { display:flex; align-items:flex-end; gap:10px; padding:10px 12px 10px 15px; }
+    .ai-compose textarea { flex:1; background:transparent; border:none; resize:none; outline:none; font-size:0.92rem; color:var(--ai-text); font-family:inherit; line-height:1.55; min-height:26px; max-height:130px; }
+    .ai-compose textarea::placeholder { color:var(--ai-text-dim); }
+    .ai-send {
+      width:36px; height:36px; flex-shrink:0; background:var(--ai-accent);
+      border:none; border-radius:10px; cursor:pointer; color:white;
+      display:flex; align-items:center; justify-content:center;
+      transition:all 0.18s; box-shadow:0 2px 8px rgba(3,78,162,0.3);
+    }
+    .ai-send:hover:not(:disabled) { background:#0456b3; transform:scale(1.05); box-shadow:0 4px 14px rgba(3,78,162,0.4); }
+    .ai-send:disabled { background:var(--ai-border); box-shadow:none; cursor:not-allowed; transform:none; }
+    .ai-input-hint { font-size:0.71rem; color:var(--ai-text-dim); text-align:center; margin-top:8px; }
+  </style>
+</head>
+<body>
+<script>
+  (function(){
+    var t = localStorage.getItem('trackio-theme');
+    if(t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  })();
+</script>
+
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('job-finder')}"></div>
+
+  <div class="main-content" style="padding:0;display:flex;flex-direction:column;flex:1;min-width:0;overflow:hidden;">
+    <div class="ai-shell">
+
+      <!-- Header -->
+      <div class="ai-header">
+        <div class="ai-header-inner">
+          <div class="ai-logo-wrap">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="10" width="26" height="17" rx="3" stroke="white" stroke-width="1.8" fill="none" opacity="0.9"/>
+              <path d="M10 10V8a6 6 0 0112 0v2" stroke="white" stroke-width="1.8" fill="none" opacity="0.8"/>
+              <circle cx="16" cy="18" r="3" fill="white" opacity="0.95"/>
+              <line x1="16" y1="21" x2="16" y2="24" stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+            </svg>
+          </div>
+          <div class="ai-header-text">
+            <div class="ai-header-title">Job Finder AI</div>
+            <div class="ai-header-sub">
+              Powered by TrackIO · DIU
+              <span class="ai-online-pill"><span class="ai-online-dot"></span>Online</span>
+            </div>
+            <div class="ai-caps">
+              <span class="ai-cap">✦ Skill Matching</span>
+              <span class="ai-cap">⊞ Gap Analysis</span>
+              <span class="ai-cap">◆ Learning Roadmap</span>
+              <span class="ai-cap">★ Job Recommendations</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills strip -->
+      <div class="skills-strip">
+        <span class="skills-strip-label">Your Skills:</span>
+        <th:block th:if="${studentSkills != null and !studentSkills.isEmpty()}">
+          <span class="skill-pill" th:each="s : ${studentSkills}" th:text="${s}"></span>
+        </th:block>
+        <span class="skills-strip-none" th:if="${studentSkills == null or studentSkills.isEmpty()}">
+          No skills added yet — go to <a th:href="@{/student/skills}" style="color:var(--ai-accent);text-decoration:none;font-weight:600;">My Skills</a> to add them first.
+        </span>
+      </div>
+
+      <!-- Messages -->
+      <div class="ai-messages" id="aiMessages">
+        <div class="ai-welcome" id="welcomeScreen">
+          <div class="ai-welcome-badge">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5 5V4a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>
+            AI Job Finder · TrackIO DIU
+          </div>
+          <h2>Find Your Perfect Job Match</h2>
+          <p>Search by role or company and I'll match your skills against available positions, show you what you're missing, and give you a step-by-step learning roadmap to get there.</p>
+          <div class="ai-suggestions">
+            <div class="ai-suggestion" onclick="quickSearch('AI Engineer','')">
+              <span class="ai-suggestion-icon">🤖</span>
+              <div class="ai-suggestion-title">AI Engineer Roles</div>
+              <div class="ai-suggestion-desc">Check your AI skill match across all companies</div>
+            </div>
+            <div class="ai-suggestion" onclick="quickSearch('Software Engineer','')">
+              <span class="ai-suggestion-icon">💻</span>
+              <div class="ai-suggestion-title">Software Engineer Roles</div>
+              <div class="ai-suggestion-desc">See how ready you are for dev positions</div>
+            </div>
+            <div class="ai-suggestion" onclick="quickSearch('','Cefalo')">
+              <span class="ai-suggestion-icon">🏢</span>
+              <div class="ai-suggestion-title">Jobs at Cefalo</div>
+              <div class="ai-suggestion-desc">All open roles at Cefalo with your match %</div>
+            </div>
+            <div class="ai-suggestion" onclick="quickSearch('','')">
+              <span class="ai-suggestion-icon">🔍</span>
+              <div class="ai-suggestion-title">Show All Jobs</div>
+              <div class="ai-suggestion-desc">View every role across all 3 companies</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typing row -->
+        <div class="ai-row bot-row" id="typingRow" style="display:none;">
+          <div class="ai-row-inner">
+            <div class="ai-avatar bot">
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+                <rect x="3" y="10" width="26" height="17" rx="3" stroke="white" stroke-width="1.8" fill="none" opacity="0.9"/>
+                <path d="M10 10V8a6 6 0 0112 0v2" stroke="white" stroke-width="1.8" fill="none" opacity="0.7"/>
+                <circle cx="16" cy="18" r="2.5" fill="white" opacity="0.95"/>
+              </svg>
+            </div>
+            <div class="ai-msg-content">
+              <div class="ai-msg-label">Job Finder AI</div>
+              <div class="typing-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input area -->
+      <div class="ai-input-area">
+        <div class="ai-input-card">
+          <div class="ai-meta">
+            <input type="text" id="inputRole"    placeholder="Job Role  (e.g. AI Engineer, DevOps)" maxlength="100"/>
+            <input type="text" id="inputCompany" placeholder="Company  (e.g. Cefalo, Enosis)"      maxlength="100"/>
+          </div>
+          <div class="ai-compose">
+            <textarea id="inputMessage"
+                      placeholder="Or just type… e.g. 'What jobs match my skills?' or 'What do I need to become an AI Engineer?'"
+                      rows="1" maxlength="500"
+                      oninput="autoResize(this)"
+                      onkeydown="handleKey(event)"></textarea>
+            <button class="ai-send" id="sendBtn" onclick="sendMessage()" title="Send (Ctrl+Enter)">
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                <path d="M2.5 15.5L15.5 9L2.5 2.5V7L11 9L2.5 11V15.5Z" fill="white"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="ai-input-hint">Job Finder AI · TrackIO DIU &nbsp;·&nbsp; Ctrl+Enter to send &nbsp;·&nbsp; Based on Cefalo, BrainStation23 &amp; Enosis openings</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script th:inline="javascript">
+  const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+  const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 130) + 'px';
+  }
+  function handleKey(e) {
+    if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); sendMessage(); }
+  }
+  function escHtml(s) {
+    return String(s||'')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function scrollBottom() {
+    const el = document.getElementById('aiMessages');
+    setTimeout(() => { el.scrollTop = el.scrollHeight; }, 60);
+  }
+  function hideWelcome() {
+    document.getElementById('welcomeScreen').style.display = 'none';
+  }
+
+  function quickSearch(role, company) {
+    document.getElementById('inputRole').value    = role;
+    document.getElementById('inputCompany').value = company;
+    document.getElementById('inputMessage').value = '';
+    sendMessage();
+  }
+
+  function botAvatarSVG() {
+    return `<svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+      <rect x="3" y="10" width="26" height="17" rx="3" stroke="white" stroke-width="1.8" fill="none" opacity="0.9"/>
+      <path d="M10 10V8a6 6 0 0112 0v2" stroke="white" stroke-width="1.8" fill="none" opacity="0.7"/>
+      <circle cx="16" cy="18" r="2.5" fill="white" opacity="0.95"/>
+    </svg>`;
+  }
+
+  function appendUserRow(html) {
+    hideWelcome();
+    const msgs = document.getElementById('aiMessages');
+    const row  = document.createElement('div');
+    row.className = 'ai-row user-row';
+    row.innerHTML = `<div class="ai-row-inner">
+      <div class="ai-avatar user">You</div>
+      <div class="ai-msg-content">
+        <div class="ai-msg-label">You</div>
+        <div class="ai-user-bubble">${html}</div>
+      </div>
+    </div>`;
+    msgs.insertBefore(row, document.getElementById('typingRow'));
+    scrollBottom();
+  }
+
+  function createBotRow() {
+    hideWelcome();
+    const msgs = document.getElementById('aiMessages');
+    const row  = document.createElement('div');
+    row.className = 'ai-row bot-row';
+    row.innerHTML = `<div class="ai-row-inner">
+      <div class="ai-avatar bot">${botAvatarSVG()}</div>
+      <div class="ai-msg-content">
+        <div class="ai-msg-label">Job Finder AI</div>
+        <div class="ai-bot-text bot-text"></div>
+      </div>
+    </div>`;
+    msgs.insertBefore(row, document.getElementById('typingRow'));
+    scrollBottom();
+    return row.querySelector('.bot-text');
+  }
+
+  function setTyping(on) {
+    document.getElementById('typingRow').style.display = on ? 'flex' : 'none';
+    if (on) scrollBottom();
+  }
+
+  async function sendMessage() {
+    const roleEl    = document.getElementById('inputRole');
+    const companyEl = document.getElementById('inputCompany');
+    const msgEl     = document.getElementById('inputMessage');
+
+    const role    = roleEl.value.trim();
+    const company = companyEl.value.trim();
+    const message = msgEl.value.trim();
+
+    // Extract role/company hints from free text if fields empty
+    let effectiveRole    = role;
+    let effectiveCompany = company;
+    if (!effectiveRole && message) {
+      const rm = message.match(/\b(AI Engineer|Software Engineer|DevOps Engineer|Database Engineer|Web Engineer|DBA)\b/i);
+      if (rm) effectiveRole = rm[1];
+    }
+    if (!effectiveCompany && message) {
+      const cm = message.match(/\b(Cefalo|BrainStation23|BrainStation|Enosis)\b/i);
+      if (cm) effectiveCompany = cm[1];
+    }
+
+    // Build user display
+    let userHtml = '';
+    if (role)    userHtml += '<strong>Role:</strong> ' + escHtml(role) + '<br>';
+    if (company) userHtml += '<strong>Company:</strong> ' + escHtml(company) + '<br>';
+    if (message) userHtml += escHtml(message);
+    if (!userHtml) userHtml = 'Show all job matches for my skills';
+
+    appendUserRow(userHtml);
+    roleEl.value = ''; companyEl.value = ''; msgEl.value = '';
+    msgEl.style.height = 'auto';
+
+    document.getElementById('sendBtn').disabled = true;
+    setTyping(true);
+
+    const botEl = createBotRow();
+
+    try {
+      const res = await fetch('/student/ai/job-finder-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN },
+        body: JSON.stringify({ searchRole: effectiveRole, searchCompany: effectiveCompany })
+      });
+      if (!res.ok) throw new Error('Server error ' + res.status);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let raw = '', buf = '';
+
+      setTyping(false);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          if (d === '[DONE]') { finalise(botEl, raw); break; }
+          try {
+            const tok = JSON.parse(d);
+            raw += tok;
+            stream(botEl, raw);
+          } catch(e){}
+        }
+      }
+      if (raw) finalise(botEl, raw);
+
+    } catch(err) {
+      setTyping(false);
+      botEl.innerHTML = '<em style="color:#dc2626">Something went wrong: ' + escHtml(err.message) + '. Please try again.</em>';
+    } finally {
+      setTyping(false);
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('inputRole').focus();
+    }
+  }
+
+  function stream(el, text) {
+    el.innerHTML = fullMd(text) + '<span class="stream-cursor"></span>';
+    scrollBottom();
+  }
+  function finalise(el, text) {
+    el.innerHTML = fullMd(text);
+    scrollBottom();
+  }
+
+  function fullMd(text) {
+    const lines = text.split('\n');
+    let html = '', ul = false, ol = false;
+    const cl = () => { if(ul){html+='</ul>';ul=false;} if(ol){html+='</ol>';ol=false;} };
+    for (const r of lines) {
+      if (/^###\s/.test(r)) { cl(); html += '<h3>' + inl(r.replace(/^###\s+/,'')) + '</h3>'; continue; }
+      if (/^##\s/.test(r))  { cl(); html += '<h2>' + inl(r.replace(/^##\s+/,''))  + '</h2>'; continue; }
+      const om = r.match(/^\s*(\d+)\.\s+(.+)/);
+      if (om) { if(!ol){cl();html+='<ol>';ol=true;} html+='<li>'+inl(om[2])+'</li>'; continue; }
+      const um = r.match(/^\s*[-•]\s+(.+)/);
+      if (um) { if(!ul){cl();html+='<ul>';ul=true;} html+='<li>'+inl(um[1])+'</li>'; continue; }
+      if (r.trim()===''){cl();continue;}
+      cl(); html += '<p>'+inl(r.trim())+'</p>';
+    }
+    cl(); return html;
+  }
+  function inl(t) {
+    let o = escHtml(t);
+    o = o.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    o = o.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g,'<em>$1</em>');
+    o = o.replace(/`([^`]+)`/g,'<code>$1</code>');
+    // Colour match % badges
+    o = o.replace(/(\d+)%/g,(m,n)=>{
+      const p=parseInt(n);
+      const c=p>=75?'match-strong':p>=40?'match-partial':'match-low';
+      return `<span class="match-badge ${c}">${n}%</span>`;
+    });
+    // Colour Strong/Partial/Low Match labels
+    o = o.replace(/\b(Strong Match)\b/g,'<span class="match-badge match-strong">Strong Match</span>');
+    o = o.replace(/\b(Partial Match)\b/g,'<span class="match-badge match-partial">Partial Match</span>');
+    o = o.replace(/\b(Low Match)\b/g,'<span class="match-badge match-low">Low Match</span>');
+    return o;
+  }
+</script>
+</body>
+</html>

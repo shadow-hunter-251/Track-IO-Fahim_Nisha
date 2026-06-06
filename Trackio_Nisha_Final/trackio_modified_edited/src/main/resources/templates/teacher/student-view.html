@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Student Profile</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('students')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>Student Profile</h1><p>Full portfolio overview</p></div>
+      <div class="topbar-actions">
+        <a th:href="@{/teacher/reports/student/{id}(id=${student.id})}" class="btn btn-secondary">▤ Report</a>
+        <a th:href="@{/teacher/students/edit/{id}(id=${student.id})}" class="btn btn-primary">Edit</a>
+        <a th:href="@{/teacher/students}" class="btn btn-secondary">← Back</a>
+      </div>
+    </div>
+    <div class="content-area">
+      <!-- Profile Hero -->
+      <div class="profile-hero" style="margin-bottom:24px">
+        <div class="profile-avatar-lg"
+             th:with="hasPhoto=${student.profilePhotoUrl != null and !#strings.isEmpty(student.profilePhotoUrl)}"
+             th:style="${hasPhoto} ? |background-image:url('${student.profilePhotoUrl}');background-size:cover;background-position:center;color:transparent| : ''">
+          <span th:if="${!hasPhoto}" th:text="${student.name != null and !#strings.isEmpty(student.name) ? student.name.substring(0,1) : 'S'}">S</span>
+        </div>
+        <div class="profile-info">
+          <h2 th:text="${student.name}">Name</h2>
+          <p th:text="${student.department + ' · Batch ' + (student.batch != null ? student.batch : 'N/A')}">Dept</p>
+          <div class="profile-meta">
+            <div class="profile-meta-item">🪪 <span th:text="${student.studentId}"></span></div>
+            <div class="profile-meta-item">📋 <span th:text="${student.registrationNo != null ? student.registrationNo : 'N/A'}"></span></div>
+            <div class="profile-meta-item" th:if="${student.email}">✉ <span th:text="${student.email}"></span></div>
+            <div class="profile-meta-item" th:if="${student.phone}">📞 <span th:text="${student.phone}"></span></div>
+          </div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:24px;text-align:center">
+          <div><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--blush)" th:text="${#lists.size(projects)}">0</div><div style="font-size:0.72rem;color:var(--diu-gray);text-transform:uppercase">Projects</div></div>
+          <div><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--blush)" th:text="${#lists.size(certs)}">0</div><div style="font-size:0.72rem;color:var(--diu-gray);text-transform:uppercase">Certs</div></div>
+          <div><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--blush)" th:text="${#lists.size(achievements)}">0</div><div style="font-size:0.72rem;color:var(--diu-gray);text-transform:uppercase">Awards</div></div>
+        </div>
+      </div>
+
+      <!-- Projects -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">◈ Projects</span></div>
+        <div th:if="${#lists.isEmpty(projects)}" style="color:var(--diu-gray);font-size:0.85rem;padding:8px 0">No projects.</div>
+        <div th:unless="${#lists.isEmpty(projects)}" class="table-container">
+          <table>
+            <thead><tr><th>Title</th><th>Type</th><th>Course</th><th>Supervisor</th><th>Period</th></tr></thead>
+            <tbody>
+            <tr th:each="p : ${projects}">
+              <td class="td-name" th:text="${p.title}">T</td>
+              <td><span class="badge" th:classappend="${p.projectType.name().toLowerCase() == 'capstone'} ? 'badge-capstone' : (${p.projectType.name().toLowerCase() == 'project'} ? 'badge-project' : 'badge-assignment')" th:text="${p.projectType}">T</span></td>
+              <td th:text="${p.courseName != null ? p.courseName : '—'}">C</td>
+              <td th:text="${p.supervisor != null ? p.supervisor : '—'}">S</td>
+              <td style="font-size:0.78rem" th:text="${(p.startDate != null ? p.startDate : '?') + ' → ' + (p.endDate != null ? p.endDate : 'Ongoing')}">P</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Certifications -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">✦ Certifications</span></div>
+        <div th:if="${#lists.isEmpty(certs)}" style="color:var(--diu-gray);font-size:0.85rem;padding:8px 0">No certifications.</div>
+        <div th:unless="${#lists.isEmpty(certs)}" class="table-container">
+          <table>
+            <thead><tr><th>Title</th><th>Issuer</th><th>Issue Date</th><th>Expiry</th></tr></thead>
+            <tbody>
+            <tr th:each="c : ${certs}">
+              <td class="td-name" th:text="${c.title}">T</td>
+              <td th:text="${c.issuingOrganization}">O</td>
+              <td th:text="${c.issueDate}">D</td>
+              <td th:text="${c.expiryDate != null ? c.expiryDate : 'No Expiry'}">E</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Achievements -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">★ Achievements</span></div>
+        <div th:if="${#lists.isEmpty(achievements)}" style="color:var(--diu-gray);font-size:0.85rem;padding:8px 0">No achievements.</div>
+        <div th:unless="${#lists.isEmpty(achievements)}" class="table-container">
+          <table>
+            <thead><tr><th>Event</th><th>Position</th><th>Organizer</th><th>Date</th></tr></thead>
+            <tbody>
+            <tr th:each="a : ${achievements}">
+              <td class="td-name" th:text="${a.eventName}">E</td>
+              <td style="color:var(--blush);font-weight:600" th:text="${a.position}">P</td>
+              <td th:text="${a.organizer != null ? a.organizer : '—'}">O</td>
+              <td th:text="${a.date}">D</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Internships -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">⚙ Internships</span></div>
+        <div th:if="${#lists.isEmpty(internships)}" style="color:var(--diu-gray);font-size:0.85rem;padding:8px 0">No internships.</div>
+        <div th:unless="${#lists.isEmpty(internships)}" class="table-container">
+          <table>
+            <thead><tr><th>Company</th><th>Role</th><th>Period</th><th>Status</th></tr></thead>
+            <tbody>
+            <tr th:each="i : ${internships}">
+              <td class="td-name" th:text="${i.companyName}">C</td>
+              <td th:text="${i.role}">R</td>
+              <td style="font-size:0.78rem" th:text="${(i.startDate != null ? i.startDate : '?') + ' → ' + (i.endDate != null ? i.endDate : 'Ongoing')}">P</td>
+              <td><span class="badge" th:classappend="${i.status.name().toLowerCase() == 'completed'} ? 'badge-completed' : (${i.status.name().toLowerCase() == 'selected'} ? 'badge-selected' : 'badge-applied')" th:text="${i.status}">S</span></td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Skills -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">◆ Skills</span></div>
+        <div th:if="${#lists.isEmpty(skills)}" style="color:var(--diu-gray);font-size:0.85rem;padding:8px 0">No skills added yet. Student has not submitted any skills.</div>
+        <div th:unless="${#lists.isEmpty(skills)}" class="table-container">
+          <table>
+            <thead><tr><th>Skill</th><th>Category</th><th>Level</th><th>Linked Course</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+            <tr th:each="s : ${skills}">
+              <td class="td-name" th:text="${s.skillName}">Name</td>
+              <td><span class="badge badge-technical" th:text="${s.category != null ? s.category : '—'}">Cat</span></td>
+              <td><span class="badge"
+                        th:classappend="${s.level != null and s.level.name() == 'BEGINNER'} ? 'badge-beginner' : (${s.level != null and s.level.name() == 'ADVANCED'} ? 'badge-advanced' : 'badge-intermediate')"
+                        th:text="${s.level != null ? s.level : '—'}">Level</span></td>
+              <td th:text="${s.linkedCourse != null ? s.linkedCourse : '—'}">Course</td>
+              <td>
+                <span th:if="${s.verified}" class="badge badge-verified">✓ Verified</span>
+                <span th:unless="${s.verified}" class="badge badge-unverified">Pending</span>
+              </td>
+              <td>
+                <form th:if="${!s.verified}" th:action="@{/teacher/skills/verify/{id}(id=${s.id})}" method="post" style="display:inline">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="verified" value="true"/>
+                  <button class="btn btn-primary btn-sm">✓ Verify</button>
+                </form>
+                <form th:if="${s.verified}" th:action="@{/teacher/skills/verify/{id}(id=${s.id})}" method="post" style="display:inline">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="verified" value="false"/>
+                  <button class="btn btn-secondary btn-sm">Unverify</button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Internships</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('internships')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>Internships &amp; Placements</h1><p>Industry Experience &amp; Job Placements</p></div>
+      <div class="topbar-actions"><a th:href="@{/student/internships/new}" class="btn btn-primary">+ Add Record</a></div>
+    </div>
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div class="card">
+        <div th:if="${#lists.isEmpty(internships)}" class="empty-state">
+          <div class="empty-icon">⚙</div><h3>No internship records</h3>
+          <p>Track your internship applications and placements.</p>
+          <a th:href="@{/student/internships/new}" class="btn btn-primary">+ Add Record</a>
+        </div>
+        <div th:unless="${#lists.isEmpty(internships)}" class="table-container">
+          <table>
+            <thead><tr><th>Company</th><th>Role</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+            <tr th:each="i : ${internships}">
+              <td class="td-name" th:text="${i.companyName}">Company</td>
+              <td th:text="${i.role}">Role</td>
+              <td th:text="${i.startDate}">Date</td>
+              <td th:text="${i.endDate != null ? i.endDate : 'Ongoing'}">Date</td>
+              <td><span class="badge"
+                        th:classappend="${i.status.name().toLowerCase() == 'completed'} ? 'badge-completed' : (${i.status.name().toLowerCase() == 'selected'} ? 'badge-selected' : 'badge-applied')"
+                        th:text="${i.status}">Status</span></td>
+              <td><div class="actions">
+                <a th:href="@{/student/internships/edit/{id}(id=${i.id})}" class="btn btn-secondary btn-sm">Edit</a>
+                <form th:action="@{/student/internships/delete/{id}(id=${i.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete?')">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <button class="btn btn-danger btn-sm">Delete</button>
+                </form>
+              </div></td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

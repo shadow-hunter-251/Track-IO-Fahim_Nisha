@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>New Course — Trackio-DIU</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('obe-courses')}"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>New Course</h1>
+        <p>Step 1 of 2 — create the course, then add its outcomes</p>
+      </div>
+      <div class="topbar-actions">
+        <a th:href="@{/teacher/obe/courses}" class="btn btn-secondary">← Back</a>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${error}" class="alert alert-danger">✗ &nbsp;<span th:text="${error}"></span></div>
+
+      <div class="card" style="max-width:680px">
+        <form th:action="@{/teacher/obe/courses/save}" th:object="${course}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Course Code <span style="color:var(--soft-red)">*</span></label>
+              <input type="text" th:field="*{courseCode}" placeholder="e.g. CSE-3711" required/>
+            </div>
+
+            <div class="form-group">
+              <label>Credits</label>
+              <input type="number" th:field="*{credits}" placeholder="3" min="1" max="6"/>
+            </div>
+
+            <div class="form-group form-full">
+              <label>Course Name <span style="color:var(--soft-red)">*</span></label>
+              <input type="text" th:field="*{courseName}" placeholder="e.g. Software Engineering" required/>
+            </div>
+
+            <div class="form-group">
+              <label>Department</label>
+              <select th:field="*{department}">
+                <option value="">Select…</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Software Engineering">Software Engineering</option>
+                <option value="Information Technology">Information Technology</option>
+                <option value="Electrical Engineering">Electrical Engineering</option>
+                <option value="Electronics &amp; Communication">Electronics &amp; Communication</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Instructor</label>
+              <input type="text" th:field="*{instructor}" placeholder="e.g. Dr. Sarah Rahman"/>
+            </div>
+          </div>
+
+          <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary">Create Course → Add Outcomes</button>
+            <a th:href="@{/teacher/obe/courses}" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

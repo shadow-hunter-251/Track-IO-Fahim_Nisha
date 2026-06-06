@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>AI Project Mentor — Trackio-DIU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       AI PROJECT MENTOR — Premium Chat Interface
+       Full-height, sidebar-aware, dark/light adaptive
+    ══════════════════════════════════════════════════════════ */
+
+    /* Reset page chrome for full-height chat */
+    .main-content { padding: 0 !important; overflow: hidden; }
+    .topbar       { display: none !important; }
+
+    /* ── Root shell ─────────────────────────────────────── */
+    .ai-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--ai-bg);
+      position: relative;
+      overflow: hidden;
+      --ai-bg:          #f0f2f7;
+      --ai-surface:     #ffffff;
+      --ai-surface2:    #f7f8fc;
+      --ai-border:      rgba(3,78,162,0.12);
+      --ai-text:        #1a1d23;
+      --ai-text-muted:  #6b7280;
+      --ai-text-dim:    #9ca3af;
+      --ai-user-bubble: linear-gradient(135deg,#034EA2 0%,#1565C0 100%);
+      --ai-bot-bg:      #ffffff;
+      --ai-bot-border:  rgba(3,78,162,0.10);
+      --ai-accent:      #034EA2;
+      --ai-green:       #39B54A;
+      --ai-header-bg:   linear-gradient(135deg,#022f66 0%,#034EA2 60%,#0a7a3c 100%);
+    }
+
+    /* Dark overrides */
+    [data-theme="dark"] .ai-shell {
+      --ai-bg:          #0d1117;
+      --ai-surface:     #161b27;
+      --ai-surface2:    #1e2433;
+      --ai-border:      rgba(255,255,255,0.07);
+      --ai-text:        #e2e8f0;
+      --ai-text-muted:  #8892a4;
+      --ai-text-dim:    #4b5563;
+      --ai-bot-bg:      #161b27;
+      --ai-bot-border:  rgba(255,255,255,0.06);
+      --ai-header-bg:   linear-gradient(135deg,#060a14 0%,#0d1428 60%,#061a0e 100%);
+    }
+
+    /* ── Premium header ─────────────────────────────────── */
+    .ai-header {
+      flex-shrink: 0;
+      background: var(--ai-header-bg);
+      padding: 18px 28px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Subtle mesh overlay */
+    .ai-header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(57,181,74,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 10% 50%, rgba(255,255,255,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    /* Animated shimmer line at bottom */
+    .ai-header::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, rgba(57,181,74,0.8) 30%, rgba(3,78,162,0.9) 60%, rgba(57,181,74,0.6) 85%, transparent 100%);
+    }
+    .ai-header-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    /* Big AI logo */
+    .ai-logo-wrap {
+      width: 56px; height: 56px;
+      background: rgba(255,255,255,0.10);
+      border: 1.5px solid rgba(255,255,255,0.20);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+    }
+    .ai-header-text { flex: 1; }
+    .ai-header-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.18rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      margin-bottom: 3px;
+    }
+    .ai-header-sub {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.62);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ai-online-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(57,181,74,0.20);
+      border: 1px solid rgba(57,181,74,0.35);
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-size: 0.70rem;
+      color: #6de882;
+      font-weight: 600;
+    }
+    .ai-online-dot {
+      width: 6px; height: 6px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #4ade80;
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* Capability pills row */
+    .ai-caps {
+      display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+    }
+    .ai-cap {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.71rem;
+      color: rgba(255,255,255,0.72);
+      font-weight: 500;
+      backdrop-filter: blur(4px);
+    }
+
+    /* ── Message area ───────────────────────────────────── */
+    .ai-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+    .ai-messages::-webkit-scrollbar { width: 4px; }
+    .ai-messages::-webkit-scrollbar-track { background: transparent; }
+    .ai-messages::-webkit-scrollbar-thumb { background: rgba(3,78,162,0.2); border-radius: 4px; }
+    [data-theme="dark"] .ai-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+
+    /* ── Welcome screen ─────────────────────────────────── */
+    .ai-welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      padding: 36px 24px 20px;
+      text-align: center;
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+
+    .ai-welcome-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(3,78,162,0.08);
+      border: 1px solid rgba(3,78,162,0.18);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.75rem;
+      color: var(--ai-accent);
+      font-weight: 600;
+      margin-bottom: 18px;
+      letter-spacing: 0.02em;
+    }
+    [data-theme="dark"] .ai-welcome-badge {
+      background: rgba(91,158,240,0.12);
+      border-color: rgba(91,158,240,0.25);
+      color: #5b9ef0;
+    }
+
+    .ai-welcome h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--ai-text);
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      max-width: 420px;
+    }
+    .ai-welcome p {
+      font-size: 0.91rem;
+      color: var(--ai-text-muted);
+      line-height: 1.7;
+      max-width: 400px;
+      margin-bottom: 28px;
+    }
+
+    /* Suggestion cards */
+    .ai-suggestions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+      max-width: 540px;
+    }
+    .ai-suggestion {
+      background: var(--ai-surface);
+      border: 1px solid var(--ai-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.18s ease;
+      box-shadow: 0 1px 6px rgba(3,78,162,0.05);
+    }
+    .ai-suggestion:hover {
+      border-color: var(--ai-accent);
+      background: rgba(3,78,162,0.04);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(3,78,162,0.12);
+    }
+    [data-theme="dark"] .ai-suggestion:hover {
+      border-color: #5b9ef0;
+      background: rgba(91,158,240,0.08);
+    }
+    .ai-suggestion-icon {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .ai-suggestion-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ai-text);
+      margin-bottom: 2px;
+    }
+    .ai-suggestion-desc {
+      font-size: 0.74rem;
+      color: var(--ai-text-muted);
+      line-height: 1.5;
+    }
+
+    /* ── Message rows ───────────────────────────────────── */
+    .ai-row {
+      display: flex;
+      justify-content: center;
+      padding: 6px 0;
+      animation: msgIn 0.2s ease;
+    }
+    @keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+    .ai-row-inner {
+      width: 100%; max-width: 760px;
+      padding: 10px 28px;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+
+    /* User row: right-aligned bubble style */
+    .ai-row.user-row {
+      background: transparent;
+    }
+    .ai-row.user-row .ai-row-inner {
+      flex-direction: row-reverse;
+    }
+    .ai-row.user-row .ai-msg-content {
+      align-items: flex-end;
+    }
+
+    /* Bot row */
+    .ai-row.bot-row {
+      background: var(--ai-surface2);
+      border-top: 1px solid var(--ai-border);
+      border-bottom: 1px solid var(--ai-border);
+    }
+
+    /* Avatars */
+    .ai-avatar {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.76rem;
+    }
+    .ai-avatar.bot {
+      background: linear-gradient(135deg, #022f66 0%, #034EA2 50%, #0a5e30 100%);
+      box-shadow: 0 2px 10px rgba(3,78,162,0.3);
+    }
+    .ai-avatar.user {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      box-shadow: 0 2px 10px rgba(79,70,229,0.3);
+    }
+
+    /* Message content wrapper */
+    .ai-msg-content {
+      flex: 1; display: flex; flex-direction: column; min-width: 0;
+    }
+    .ai-msg-label {
+      font-size: 0.70rem; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--ai-text-dim);
+      margin-bottom: 5px;
+    }
+    /* User bubble */
+    .ai-user-bubble {
+      background: var(--ai-user-bubble);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 14px 4px 14px 14px;
+      font-size: 0.90rem; line-height: 1.65;
+      max-width: 78%;
+      word-break: break-word;
+      box-shadow: 0 3px 12px rgba(3,78,162,0.25);
+    }
+    .ai-user-bubble strong { font-weight: 700; opacity: 0.9; }
+    /* Bot message: plain prose, no bubble */
+    .ai-bot-text {
+      font-size: 0.92rem;
+      line-height: 1.75;
+      color: var(--ai-text);
+      padding-right: 12px;
+    }
+
+    /* Report markdown styles */
+    .ai-bot-text h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.97rem; font-weight: 700;
+      color: var(--ai-accent);
+      margin: 18px 0 6px;
+      padding-bottom: 5px;
+      border-bottom: 1.5px solid var(--ai-border);
+      display: flex; align-items: center; gap: 6px;
+    }
+    [data-theme="dark"] .ai-bot-text h2 { color: #5b9ef0; border-bottom-color: rgba(91,158,240,0.2); }
+    .ai-bot-text h2:first-child { margin-top: 0; }
+    .ai-bot-text p  { margin: 0 0 9px; }
+    .ai-bot-text ul, .ai-bot-text ol { margin: 4px 0 10px 20px; padding: 0; line-height: 1.8; }
+    .ai-bot-text li { margin-bottom: 4px; }
+    .ai-bot-text strong { font-weight: 700; color: var(--ai-text); }
+    .ai-bot-text em { font-style: italic; color: var(--ai-text-muted); }
+    .ai-bot-text code {
+      background: rgba(3,78,162,0.07);
+      border: 1px solid rgba(3,78,162,0.12);
+      border-radius: 5px; padding: 1px 7px;
+      font-family: 'SF Mono','Fira Code',monospace; font-size: 0.84rem;
+    }
+    [data-theme="dark"] .ai-bot-text code {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Similarity badges */
+    .sim-badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:20px; font-weight:700; font-size:0.80rem; margin:0 2px; letter-spacing:0.01em; }
+    .sim-high   { background:#fde8e8; color:#dc2626; border:1px solid #fca5a5; }
+    .sim-medium { background:#fef3c7; color:#d97706; border:1px solid #fcd34d; }
+    .sim-low    { background:#dcfce7; color:#16a34a; border:1px solid #86efac; }
+    [data-theme="dark"] .sim-high   { background:rgba(220,38,38,0.15); color:#f87171; border-color:rgba(248,113,113,0.3); }
+    [data-theme="dark"] .sim-medium { background:rgba(217,119,6,0.15);  color:#fbbf24; border-color:rgba(251,191,36,0.3); }
+    [data-theme="dark"] .sim-low    { background:rgba(22,163,74,0.15);  color:#4ade80; border-color:rgba(74,222,128,0.3); }
+
+    /* Stream cursor */
+    .stream-cursor {
+      display:inline-block; width:2px; height:1.05em;
+      background: var(--ai-accent); margin-left:3px;
+      animation:blink 0.8s step-end infinite;
+      vertical-align:text-bottom; border-radius:1px;
+    }
+    [data-theme="dark"] .stream-cursor { background: #5b9ef0; }
+    @keyframes blink { 50%{opacity:0} }
+
+    /* Typing indicator */
+    .typing-dots { display:flex; gap:5px; padding: 8px 0; }
+    .typing-dots span {
+      width:8px; height:8px;
+      background: var(--ai-text-dim);
+      border-radius:50%;
+      animation:tdot 1.4s ease infinite;
+    }
+    .typing-dots span:nth-child(2){animation-delay:.2s}
+    .typing-dots span:nth-child(3){animation-delay:.4s}
+    @keyframes tdot {0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+
+    /* ── Input area ─────────────────────────────────────── */
+    .ai-input-area {
+      flex-shrink: 0;
+      padding: 14px 24px 18px;
+      background: var(--ai-bg);
+      border-top: 1px solid var(--ai-border);
+    }
+    .ai-input-card {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--ai-surface);
+      border: 1.5px solid var(--ai-border);
+      border-radius: 18px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 16px rgba(3,78,162,0.06), 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .ai-input-card:focus-within {
+      border-color: rgba(3,78,162,0.45);
+      box-shadow: 0 4px 24px rgba(3,78,162,0.12);
+    }
+    [data-theme="dark"] .ai-input-card {
+      box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+    }
+    [data-theme="dark"] .ai-input-card:focus-within {
+      border-color: rgba(91,158,240,0.45);
+      box-shadow: 0 4px 24px rgba(91,158,240,0.12);
+    }
+
+    /* Meta fields (name + title) */
+    .ai-meta {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--ai-border);
+    }
+    .ai-meta input {
+      padding: 9px 15px;
+      background: transparent; border: none;
+      font-size: 0.82rem; color: var(--ai-text);
+      outline: none; font-family: inherit;
+    }
+    .ai-meta input:first-child { border-right: 1px solid var(--ai-border); }
+    .ai-meta input::placeholder { color: var(--ai-text-dim); }
+
+    /* Main textarea row */
+    .ai-compose {
+      display: flex; align-items: flex-end; gap: 10px;
+      padding: 10px 12px 10px 15px;
+    }
+    .ai-compose textarea {
+      flex: 1; background: transparent; border: none;
+      resize: none; outline: none;
+      font-size: 0.92rem; color: var(--ai-text);
+      font-family: inherit; line-height: 1.55;
+      min-height: 26px; max-height: 130px;
+    }
+    .ai-compose textarea::placeholder { color: var(--ai-text-dim); }
+    .ai-send {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: var(--ai-accent);
+      border: none; border-radius: 10px;
+      cursor: pointer; color: white;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.18s;
+      box-shadow: 0 2px 8px rgba(3,78,162,0.3);
+    }
+    .ai-send:hover:not(:disabled) {
+      background: #0456b3;
+      transform: scale(1.05);
+      box-shadow: 0 4px 14px rgba(3,78,162,0.4);
+    }
+    .ai-send:disabled {
+      background: var(--ai-border);
+      box-shadow: none; cursor: not-allowed; transform: none;
+    }
+    .ai-input-hint {
+      font-size: 0.71rem;
+      color: var(--ai-text-dim);
+      text-align: center;
+      margin-top: 8px;
+      letter-spacing: 0.01em;
+    }
+  </style>
+</head>
+<body>
+<script>
+  (function(){
+    var t = localStorage.getItem('trackio-theme');
+    if(t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  })();
+</script>
+
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('ai-checker')}"></div>
+
+  <div class="main-content" style="padding:0;display:flex;flex-direction:column;flex:1;min-width:0;overflow:hidden;">
+    <div class="ai-shell">
+
+      <!-- ── Premium header ── -->
+      <div class="ai-header">
+        <div class="ai-header-inner">
+          <div class="ai-logo-wrap">
+            <!-- Neural AI icon — large, crisp -->
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Central brain/node -->
+              <circle cx="16" cy="16" r="5.5" fill="white" opacity="0.96"/>
+              <!-- Outer nodes -->
+              <circle cx="16" cy="3"  r="3" fill="white" opacity="0.70"/>
+              <circle cx="16" cy="29" r="3" fill="white" opacity="0.70"/>
+              <circle cx="3"  cy="16" r="3" fill="white" opacity="0.70"/>
+              <circle cx="29" cy="16" r="3" fill="white" opacity="0.70"/>
+              <circle cx="6"  cy="6"  r="2.2" fill="white" opacity="0.45"/>
+              <circle cx="26" cy="6"  r="2.2" fill="white" opacity="0.45"/>
+              <circle cx="6"  cy="26" r="2.2" fill="white" opacity="0.45"/>
+              <circle cx="26" cy="26" r="2.2" fill="white" opacity="0.45"/>
+              <!-- Connection lines to cardinal nodes -->
+              <line x1="16" y1="10.5" x2="16" y2="6"   stroke="white" stroke-width="1.5" opacity="0.55"/>
+              <line x1="16" y1="21.5" x2="16" y2="26"  stroke="white" stroke-width="1.5" opacity="0.55"/>
+              <line x1="10.5" y1="16" x2="6"  y2="16"  stroke="white" stroke-width="1.5" opacity="0.55"/>
+              <line x1="21.5" y1="16" x2="26" y2="16"  stroke="white" stroke-width="1.5" opacity="0.55"/>
+              <!-- Diagonal connections to corner nodes -->
+              <line x1="12.1" y1="12.1" x2="8"  y2="8"   stroke="white" stroke-width="1.2" opacity="0.35"/>
+              <line x1="19.9" y1="12.1" x2="24" y2="8"   stroke="white" stroke-width="1.2" opacity="0.35"/>
+              <line x1="12.1" y1="19.9" x2="8"  y2="24"  stroke="white" stroke-width="1.2" opacity="0.35"/>
+              <line x1="19.9" y1="19.9" x2="24" y2="24"  stroke="white" stroke-width="1.2" opacity="0.35"/>
+              <!-- Inner pulse ring -->
+              <circle cx="16" cy="16" r="8.5" stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none"/>
+            </svg>
+          </div>
+          <div class="ai-header-text">
+            <div class="ai-header-title">Project Mentor AI</div>
+            <div class="ai-header-sub">
+              Powered by TrackIO · DIU
+              <span class="ai-online-pill">
+                <span class="ai-online-dot"></span>
+                Online
+              </span>
+            </div>
+            <div class="ai-caps">
+              <span class="ai-cap">✦ Originality Check</span>
+              <span class="ai-cap">⊞ Similarity Analysis</span>
+              <span class="ai-cap">◆ Mentor Guidance</span>
+              <span class="ai-cap">★ Build Roadmap</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Messages ── -->
+      <div class="ai-messages" id="aiMessages">
+
+        <!-- Welcome state -->
+        <div class="ai-welcome" id="welcomeScreen">
+          <div class="ai-welcome-badge">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.5" fill="currentColor" opacity="0.9"/><circle cx="8" cy="1.5" r="1.5" fill="currentColor" opacity="0.6"/><circle cx="8" cy="14.5" r="1.5" fill="currentColor" opacity="0.6"/><circle cx="1.5" cy="8" r="1.5" fill="currentColor" opacity="0.6"/><circle cx="14.5" cy="8" r="1.5" fill="currentColor" opacity="0.6"/></svg>
+            AI Project Mentor · TrackIO DIU
+          </div>
+          <h2>What are you working on today?</h2>
+          <p>Describe your project idea and I'll check its originality against existing submissions, spot overlaps, and give you mentor-quality guidance to help you stand out.</p>
+          <div class="ai-suggestions">
+            <div class="ai-suggestion" onclick="useSuggestion('I want to build a student attendance tracking system using QR codes and facial recognition.')">
+              <span class="ai-suggestion-icon">🔍</span>
+              <div class="ai-suggestion-title">Check Originality</div>
+              <div class="ai-suggestion-desc">See how unique your project idea is</div>
+            </div>
+            <div class="ai-suggestion" onclick="useSuggestion('Is a hospital management system with doctor appointment booking still a unique project idea?')">
+              <span class="ai-suggestion-icon">✦</span>
+              <div class="ai-suggestion-title">Assess Uniqueness</div>
+              <div class="ai-suggestion-desc">Find out if your idea has been done before</div>
+            </div>
+            <div class="ai-suggestion" onclick="useSuggestion('Give me a build roadmap and feature suggestions for a food delivery app project.')">
+              <span class="ai-suggestion-icon">🗺️</span>
+              <div class="ai-suggestion-title">Get a Roadmap</div>
+              <div class="ai-suggestion-desc">Step-by-step plan to build your project</div>
+            </div>
+            <div class="ai-suggestion" onclick="useSuggestion('How can I differentiate my e-commerce project from similar ones in the department?')">
+              <span class="ai-suggestion-icon">🚀</span>
+              <div class="ai-suggestion-title">Differentiate Idea</div>
+              <div class="ai-suggestion-desc">Stand out with unique features and angles</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typing row -->
+        <div class="ai-row bot-row" id="typingRow" style="display:none;">
+          <div class="ai-row-inner">
+            <div class="ai-avatar bot">
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="5.5" fill="white" opacity="0.95"/>
+                <circle cx="16" cy="3"  r="3" fill="white" opacity="0.65"/>
+                <circle cx="16" cy="29" r="3" fill="white" opacity="0.65"/>
+                <circle cx="3"  cy="16" r="3" fill="white" opacity="0.65"/>
+                <circle cx="29" cy="16" r="3" fill="white" opacity="0.65"/>
+                <line x1="16" y1="10.5" x2="16" y2="6"  stroke="white" stroke-width="1.5" opacity="0.5"/>
+                <line x1="16" y1="21.5" x2="16" y2="26" stroke="white" stroke-width="1.5" opacity="0.5"/>
+                <line x1="10.5" y1="16" x2="6"  y2="16" stroke="white" stroke-width="1.5" opacity="0.5"/>
+                <line x1="21.5" y1="16" x2="26" y2="16" stroke="white" stroke-width="1.5" opacity="0.5"/>
+              </svg>
+            </div>
+            <div class="ai-msg-content">
+              <div class="ai-msg-label">Project Mentor AI</div>
+              <div class="typing-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /ai-messages -->
+
+      <!-- ── Input area ── -->
+      <div class="ai-input-area">
+        <div class="ai-input-card">
+          <div class="ai-meta">
+            <input type="text" id="inputName"  placeholder="Project Name  (optional)" maxlength="120"/>
+            <input type="text" id="inputTitle" placeholder="Project Title (optional)" maxlength="180"/>
+          </div>
+          <div class="ai-compose">
+            <textarea id="inputIdea"
+                      placeholder="Describe your project idea… or just say hi 👋"
+                      rows="1" maxlength="2000"
+                      oninput="autoResize(this)"
+                      onkeydown="handleKey(event)"></textarea>
+            <button class="ai-send" id="sendBtn" onclick="sendMessage()" title="Send (Ctrl+Enter)">
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                <path d="M2.5 15.5L15.5 9L2.5 2.5V7L11 9L2.5 11V15.5Z" fill="white"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="ai-input-hint">Project Mentor AI · TrackIO DIU &nbsp;·&nbsp; Ctrl+Enter to send &nbsp;·&nbsp; AI can make mistakes — review important info</div>
+      </div>
+
+    </div><!-- /ai-shell -->
+  </div>
+</div>
+
+<script th:inline="javascript">
+  const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+  const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 130) + 'px';
+  }
+  function handleKey(e) {
+    if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); sendMessage(); }
+  }
+  function escHtml(s) {
+    return String(s||'')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function scrollBottom() {
+    const el = document.getElementById('aiMessages');
+    setTimeout(() => { el.scrollTop = el.scrollHeight; }, 60);
+  }
+
+  function useSuggestion(text) {
+    document.getElementById('inputIdea').value = text;
+    autoResize(document.getElementById('inputIdea'));
+    document.getElementById('inputIdea').focus();
+  }
+
+  /* ── AI avatar SVG (inline, used in JS-appended rows) ── */
+  function botAvatarSVG() {
+    return `<svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="5.5" fill="white" opacity="0.95"/>
+      <circle cx="16" cy="3"  r="3" fill="white" opacity="0.65"/>
+      <circle cx="16" cy="29" r="3" fill="white" opacity="0.65"/>
+      <circle cx="3"  cy="16" r="3" fill="white" opacity="0.65"/>
+      <circle cx="29" cy="16" r="3" fill="white" opacity="0.65"/>
+      <line x1="16" y1="10.5" x2="16" y2="6"  stroke="white" stroke-width="1.5" opacity="0.5"/>
+      <line x1="16" y1="21.5" x2="16" y2="26" stroke="white" stroke-width="1.5" opacity="0.5"/>
+      <line x1="10.5" y1="16" x2="6"  y2="16" stroke="white" stroke-width="1.5" opacity="0.5"/>
+      <line x1="21.5" y1="16" x2="26" y2="16" stroke="white" stroke-width="1.5" opacity="0.5"/>
+    </svg>`;
+  }
+
+  /* ── Append rows ── */
+  function hideWelcome() {
+    document.getElementById('welcomeScreen').style.display = 'none';
+  }
+
+  function appendUserRow(html) {
+    hideWelcome();
+    const msgs = document.getElementById('aiMessages');
+    const row  = document.createElement('div');
+    row.className = 'ai-row user-row';
+    row.innerHTML = `<div class="ai-row-inner">
+      <div class="ai-avatar user">You</div>
+      <div class="ai-msg-content">
+        <div class="ai-msg-label">You</div>
+        <div class="ai-user-bubble">${html}</div>
+      </div>
+    </div>`;
+    msgs.insertBefore(row, document.getElementById('typingRow'));
+    scrollBottom();
+  }
+
+  function createBotRow() {
+    hideWelcome();
+    const msgs = document.getElementById('aiMessages');
+    const row  = document.createElement('div');
+    row.className = 'ai-row bot-row';
+    row.innerHTML = `<div class="ai-row-inner">
+      <div class="ai-avatar bot">${botAvatarSVG()}</div>
+      <div class="ai-msg-content">
+        <div class="ai-msg-label">Project Mentor AI</div>
+        <div class="ai-bot-text bot-text"></div>
+      </div>
+    </div>`;
+    msgs.insertBefore(row, document.getElementById('typingRow'));
+    scrollBottom();
+    return row.querySelector('.bot-text');
+  }
+
+  function setTyping(on) {
+    document.getElementById('typingRow').style.display = on ? 'flex' : 'none';
+    if (on) scrollBottom();
+  }
+
+  /* ── Send ── */
+  async function sendMessage() {
+    const nameEl  = document.getElementById('inputName');
+    const titleEl = document.getElementById('inputTitle');
+    const ideaEl  = document.getElementById('inputIdea');
+
+    const name  = nameEl.value.trim();
+    const title = titleEl.value.trim();
+    const idea  = ideaEl.value.trim();
+    const combined = (name + ' ' + title + ' ' + idea).trim();
+
+    if (!combined) {
+      const el = createBotRow();
+      el.textContent = 'Just type something — even a quick hi works! 😊';
+      return;
+    }
+
+    let userHtml = '';
+    if (name)  userHtml += '<strong>Name:</strong> ' + escHtml(name) + '<br>';
+    if (title) userHtml += '<strong>Title:</strong> ' + escHtml(title) + '<br>';
+    if (!name && !title && idea) userHtml = escHtml(idea);
+    else if (idea) userHtml += escHtml(idea);
+    appendUserRow(userHtml);
+
+    nameEl.value = ''; titleEl.value = ''; ideaEl.value = '';
+    ideaEl.style.height = 'auto';
+
+    document.getElementById('sendBtn').disabled = true;
+    setTyping(true);
+
+    const botEl = createBotRow();
+
+    try {
+      const res = await fetch('/student/ai/duplicate-check-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN },
+        body: JSON.stringify({ projectName: name, projectTitle: title, projectIdea: idea })
+      });
+      if (!res.ok) throw new Error('Server error ' + res.status);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let raw = '', buf = '', isReport = false;
+
+      setTyping(false);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          if (d === '[DONE]') { finalise(botEl, raw, isReport); break; }
+          try {
+            const tok = JSON.parse(d);
+            raw += tok;
+            if (!isReport && raw.includes('##')) isReport = true;
+            stream(botEl, raw, isReport);
+          } catch(e){}
+        }
+      }
+      if (raw) finalise(botEl, raw, isReport);
+
+    } catch(err) {
+      setTyping(false);
+      botEl.innerHTML = '<em style="color:#dc2626">Something went wrong: ' + escHtml(err.message) + '. Please try again.</em>';
+    } finally {
+      setTyping(false);
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('inputIdea').focus();
+    }
+  }
+
+  function stream(el, text, isReport) {
+    if (isReport) el.innerHTML = lightMd(text) + '<span class="stream-cursor"></span>';
+    else el.innerHTML = convRender(text) + '<span class="stream-cursor"></span>';
+    scrollBottom();
+  }
+  function finalise(el, text, isReport) {
+    el.innerHTML = isReport ? fullMd(text) : convRender(text);
+    scrollBottom();
+  }
+
+  function convRender(t) {
+    return escHtml(t)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
+  }
+  function lightMd(t) {
+    return escHtml(t)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/## /g,'\n').replace(/\n/g,'<br>');
+  }
+  function fullMd(text) {
+    const lines = text.split('\n');
+    let html = '', ul = false, ol = false;
+    const cl = () => { if(ul){html+='</ul>';ul=false;} if(ol){html+='</ol>';ol=false;} };
+    for (const r of lines) {
+      if (/^##\s/.test(r)) { cl(); html += '<h2>' + inl(r.replace(/^##\s+/,'')) + '</h2>'; continue; }
+      const om = r.match(/^\s*(\d+)\.\s+(.+)/);
+      if (om) { if(!ol){cl();html+='<ol>';ol=true;} html+='<li>'+inl(om[2])+'</li>'; continue; }
+      const um = r.match(/^\s*[-•]\s+(.+)/);
+      if (um) { if(!ul){cl();html+='<ul>';ul=true;} html+='<li>'+inl(um[1])+'</li>'; continue; }
+      if (r.trim()===''){cl();continue;}
+      cl(); html += '<p>'+inl(r.trim())+'</p>';
+    }
+    cl(); return html;
+  }
+  function inl(t) {
+    let o = escHtml(t);
+    o = o.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    o = o.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g,'<em>$1</em>');
+    o = o.replace(/`([^`]+)`/g,'<code>$1</code>');
+    o = o.replace(/(\d+)%/g,(m,n)=>{
+      const p=parseInt(n);
+      const c=p>=60?'sim-high':p>=25?'sim-medium':'sim-low';
+      return `<span class="sim-badge ${c}">${n}%</span>`;
+    });
+    return o;
+  }
+</script>
+</body>
+</html>

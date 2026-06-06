@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Achievements</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('achievements')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>All Achievements</h1><p>Competitions and awards across all students</p></div>
+      <div class="topbar-actions"><a th:href="@{/teacher/achievements/new}" class="btn btn-primary">+ Add Achievement</a></div>
+    </div>
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div class="card">
+        <div th:if="${#lists.isEmpty(achievements)}" class="empty-state"><div class="empty-icon">★</div><h3>No achievements</h3></div>
+        <div th:unless="${#lists.isEmpty(achievements)}" class="table-container">
+          <table>
+            <thead><tr><th>Event</th><th>Student</th><th>Position</th><th>Organizer</th><th>Date</th><th>Verified</th><th>Actions</th></tr></thead>
+            <tbody>
+            <tr th:each="a : ${achievements}">
+              <td class="td-name" th:text="${a.eventName}">E</td>
+              <td th:text="${a.student != null ? a.student.name : '—'}">S</td>
+              <td style="color:var(--blush);font-weight:600" th:text="${a.position}">P</td>
+              <td th:text="${a.organizer != null ? a.organizer : '—'}">O</td>
+              <td th:text="${a.date}">D</td>
+              <td>
+                <span th:if="${a.verified}" class="badge badge-verified">✓ Yes</span>
+                <span th:unless="${a.verified}" class="badge badge-unverified">✗ No</span>
+              </td>
+              <td><div class="actions">
+                <a th:href="@{/teacher/achievements/edit/{id}(id=${a.id})}" class="btn btn-secondary btn-sm">Edit</a>
+                <form th:action="@{/teacher/achievements/verify/{id}(id=${a.id})}" method="post" style="display:inline">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="verified" th:value="${!a.verified}"/>
+                  <button class="btn btn-sm" th:classappend="${a.verified} ? 'btn-warning' : 'btn-success'"
+                          th:text="${a.verified} ? 'Unverify' : 'Verify'">Toggle</button>
+                </form>
+                <form th:action="@{/teacher/achievements/delete/{id}(id=${a.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete?')">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <button class="btn btn-danger btn-sm">Delete</button>
+                </form>
+              </div></td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

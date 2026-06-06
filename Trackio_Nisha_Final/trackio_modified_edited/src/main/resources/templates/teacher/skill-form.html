@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Skill Form</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('skills')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1 th:text="${skill.id != null} ? 'Edit Skill' : 'New Skill'">Form</h1></div>
+      <div class="topbar-actions"><a th:href="@{/teacher/skills}" class="btn btn-secondary">← Back</a></div>
+    </div>
+    <div class="content-area">
+      <div class="card" style="max-width:680px">
+        <form th:action="${skill.id != null} ? @{/teacher/skills/update/{id}(id=${skill.id})} : @{/teacher/skills/save}"
+              th:object="${skill}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <div class="form-grid">
+            <div class="form-group form-full"><label>Skill Name *</label><input type="text" th:field="*{skillName}" placeholder="e.g. Java Programming" required/></div>
+            <div class="form-group">
+              <label>Category</label>
+              <input type="text" th:field="*{category}" placeholder="e.g. Technical, Soft Skill"/>
+            </div>
+            <div class="form-group">
+              <label>Level</label>
+              <select th:field="*{level}">
+                <option value="">-- Select Level --</option>
+                <option th:each="l : ${levels}" th:value="${l}" th:text="${l}">Level</option>
+              </select>
+            </div>
+            <div class="form-group form-full"><label>Linked Course</label><input type="text" th:field="*{linkedCourse}" placeholder="e.g. OOP &amp; Java Programming"/></div>
+            <div class="form-group form-full">
+              <label>Linked Project (Evidence)</label>
+              <select name="linkedProjectId">
+                <option value="">-- None --</option>
+                <option th:each="p : ${projects}"
+                        th:value="${p.projectId}"
+                        th:text="${p.title + ' (' + p.projectId + ')'}"
+                        th:selected="${skill.linkedProjectId != null and skill.linkedProjectId == p.projectId}">Project</option>
+              </select>
+              <small style="color:var(--diu-gray);font-size:0.75rem">Select a project that demonstrates this skill</small>
+            </div>
+            <div class="form-group form-full">
+              <label>Verified</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="verifiedParam" value="yes" th:checked="${skill.verified}"/> Yes
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="verifiedParam" value="no" th:checked="${!skill.verified}"/> No
+                </label>
+              </div>
+              <small style="color:var(--diu-gray);font-size:0.75rem">Mark as verified once you confirm the skill is evidenced by the linked project</small>
+            </div>
+          </div>
+          <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary" th:text="${skill.id != null} ? 'Update Skill' : 'Save Skill'">Save</button>
+            <a th:href="@{/teacher/skills}" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

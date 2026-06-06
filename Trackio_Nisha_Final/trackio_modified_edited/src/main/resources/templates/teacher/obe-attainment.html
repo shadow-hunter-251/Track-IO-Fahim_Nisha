@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>OBE Attainment — Trackio-DIU</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .filter-bar {
+      display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;
+      background:var(--shadow);border:1px solid var(--border);
+      border-radius:10px;padding:16px 20px;margin-bottom:22px
+    }
+    .filter-bar .filter-group { display:flex;flex-direction:column;gap:6px }
+    .filter-bar label {
+      font-size:0.72rem;color:var(--diu-gray);font-weight:600;
+      text-transform:uppercase;letter-spacing:0.06em
+    }
+    .filter-bar select {
+      background: var(--abyss);border:1px solid var(--border);
+      color: var(--text-primary);padding:8px 12px;border-radius:6px;
+      font-size:0.88rem;min-width:200px
+    }
+
+    .kpi-row {
+      display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px
+    }
+    @media(max-width:780px){ .kpi-row{grid-template-columns:repeat(2,1fr)} }
+    .kpi-card {
+      background:var(--shadow);border:1px solid var(--border);
+      border-radius:10px;padding:18px
+    }
+    .kpi-label {
+      font-size:0.7rem;text-transform:uppercase;color:var(--diu-gray);
+      letter-spacing:0.08em;font-weight:600;margin-bottom:6px
+    }
+    .kpi-value {
+      font-size:1.8rem;font-weight:700;color:var(--text-primary);
+      letter-spacing:-0.02em;line-height:1
+    }
+    .kpi-sub { font-size:0.75rem;color:var(--diu-blue);margin-top:4px }
+
+    .grid2 { display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:22px }
+    @media(max-width:1000px){ .grid2{grid-template-columns:1fr} }
+
+    .po-row {
+      display:flex;align-items:center;gap:12px;padding:10px 0;
+      border-bottom:1px solid var(--border)
+    }
+    .po-row:last-child { border-bottom: none }
+    .po-code {
+      font-weight:700;color:var(--diu-blue);
+      width:50px;font-size:0.92rem;flex-shrink:0
+    }
+    .po-name {
+      flex: 0 0 160px;font-size:0.82rem;color:var(--text-primary)
+    }
+    .po-bar-wrap {
+      flex:1;height:18px;background:rgba(255,255,255,0.04);
+      border-radius:4px;overflow:hidden;position:relative
+    }
+    .po-bar {
+      height:100%;border-radius:4px;transition:width 0.5s ease;
+      background: linear-gradient(90deg,var(--diu-blue),var(--diu-blue-light))
+    }
+    .po-bar.met {
+      background: linear-gradient(90deg,#39B54A,#39B54A)
+    }
+    .po-bar.weak {
+      background: linear-gradient(90deg,#ED1C24,#e9a36a)
+    }
+    .po-pct {
+      font-size:0.82rem;color:var(--diu-blue);font-weight:700;
+      width:50px;text-align:right;flex-shrink:0
+    }
+
+    .target-line {
+      position:absolute;top:0;bottom:0;
+      width:1px;background:rgba(255,255,255,0.4);
+      pointer-events:none
+    }
+
+    .co-grid {
+      display:grid;grid-template-columns:1fr;gap:10px
+    }
+    .co-card {
+      background:rgba(255,255,255,0.02);border:1px solid var(--border);
+      border-radius:8px;padding:14px 16px;
+    }
+    .co-card.met { border-left:3px solid var(--diu-green) }
+    .co-card.unmet { border-left:3px solid #f7d488 }
+    .co-card.untracked { border-left:3px solid rgba(255,255,255,0.1); opacity:0.7 }
+
+    .co-card-head {
+      display:flex;justify-content:space-between;align-items:flex-start;
+      gap:14px;flex-wrap:wrap;margin-bottom:8px
+    }
+    .co-card-id {
+      font-size:0.78rem;color:var(--diu-blue);font-weight:700
+    }
+    .co-card-pct {
+      font-size:1.1rem;font-weight:700;
+      background:linear-gradient(135deg,var(--diu-blue),var(--diu-green));
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent
+    }
+    .co-card-stmt {
+      font-size:0.86rem;color:var(--text-primary);line-height:1.5
+    }
+    .co-card-meta {
+      display:flex;gap:14px;font-size:0.74rem;color:var(--diu-gray);
+      margin-top:8px;flex-wrap:wrap
+    }
+    .co-card-meta strong { color:var(--text-primary) }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('obe-attainment')}"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>PO / CO Attainment</h1>
+        <p>Live accreditation report — computed from student-tagged evidence</p>
+      </div>
+      <div class="topbar-actions">
+        <a th:href="@{/teacher/obe/attainment/export(department=${selectedDepartment},batch=${selectedBatch})}"
+           class="btn btn-secondary">⬇ Export CSV</a>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- Filters -->
+      <form method="get" th:action="@{/teacher/obe/attainment}" class="filter-bar">
+        <div class="filter-group">
+          <label>Department</label>
+          <select name="department">
+            <option value="">All departments</option>
+            <option th:each="d : ${departments}" th:value="${d}" th:text="${d}"
+                    th:selected="${d == selectedDepartment}">Dept</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Batch / Year</label>
+          <select name="batch">
+            <option value="">All batches</option>
+            <option th:each="b : ${batches}" th:value="${b}" th:text="${b}"
+                    th:selected="${b == selectedBatch}">Batch</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        <a th:href="@{/teacher/obe/attainment}" class="btn btn-secondary btn-sm">Reset</a>
+      </form>
+
+      <!-- KPI summary -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Overall PO Average</div>
+          <div class="kpi-value" th:text="${overallPoAvg} + '%'">0%</div>
+          <div class="kpi-sub">Across 12 program outcomes</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">POs ≥ 60% Threshold</div>
+          <div class="kpi-value" style="color:var(--diu-green-dark)" th:text="${posAboveThreshold} + ' / 12'">0 / 12</div>
+          <div class="kpi-sub">Meeting accreditation target</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">POs Below Threshold</div>
+          <div class="kpi-value" style="color:#ED1C24" th:text="${posBelowThreshold}">0</div>
+          <div class="kpi-sub">Need curriculum intervention</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Tagged Evidence</div>
+          <div class="kpi-value" th:text="${totalProjectsTagged}">0</div>
+          <div class="kpi-sub">
+            From <strong th:text="${totalStudents}">0</strong> students
+          </div>
+        </div>
+      </div>
+
+      <!-- PO Radar + List -->
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Program Outcomes — Attainment Profile</span>
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:14px">
+            Weighted average per PO. Each CO contributes by its mapping weight (3/2/1).
+            Bars in <span style="color:var(--diu-green-dark)">teal</span> meet the 60% accreditation threshold.
+          </p>
+
+          <div th:if="${#lists.isEmpty(poAttainment)}" class="empty-state" style="padding:30px">
+            <p>No POs configured yet.</p>
+          </div>
+
+          <div th:unless="${#lists.isEmpty(poAttainment)}">
+            <div th:each="po : ${poAttainment}" class="po-row">
+              <div class="po-code" th:text="${po.code}">PO1</div>
+              <div class="po-name" th:text="${po.shortName}" th:title="${po.statement}">Knowledge</div>
+              <div class="po-bar-wrap">
+                <div class="po-bar"
+                     th:classappend="${po.percent >= 60} ? 'met' : (${po.percent < 40} ? 'weak' : '')"
+                     th:style="'width:' + ${po.percent} + '%'"></div>
+                <div class="target-line" style="left:60%"></div>
+              </div>
+              <div class="po-pct" th:text="${po.percent} + '%'">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Radar View</span>
+          </div>
+          <canvas id="poRadar" style="max-height:420px"></canvas>
+        </div>
+      </div>
+
+      <!-- CO breakdown -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Course Outcome Attainment</span>
+          <span style="font-size:0.78rem;color:var(--diu-gray)">
+            Evidence × 20% = attainment · capped at 100%
+          </span>
+        </div>
+
+        <div th:if="${#lists.isEmpty(coAttainment)}" class="empty-state" style="padding:30px">
+          <p style="font-size:0.9rem">
+            No course outcomes defined yet. Set them up under
+            <a th:href="@{/teacher/obe/courses}" style="color:var(--diu-blue)">OBE Courses</a>.
+          </p>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(coAttainment)}" class="co-grid">
+          <div th:each="co : ${coAttainment}" class="co-card"
+               th:classappend="${co.contributions == 0} ? 'untracked' : (${co.metTarget} ? 'met' : 'unmet')">
+            <div class="co-card-head">
+              <div>
+                <span class="co-card-id" th:text="${co.courseCode + ' / ' + co.code}">CSE-3711 / CO1</span>
+                <span th:if="${co.bloom != null}"
+                      style="margin-left:8px;font-size:0.7rem;padding:1px 8px;border-radius:10px;background:rgba(3,78,162,0.12);color:var(--diu-blue);font-weight:600"
+                      th:text="${co.bloom}">APPLY</span>
+              </div>
+              <div class="co-card-pct" th:text="${co.attained} + '%'">0%</div>
+            </div>
+            <div class="co-card-stmt" th:text="${co.statement}">Statement</div>
+            <div class="co-card-meta">
+              <span>📌 Evidence: <strong th:text="${co.contributions}">0</strong> tagged projects</span>
+              <span>🎯 Target: <strong th:text="${co.target} + '%'">60%</strong></span>
+              <span th:if="${co.poMappings != null and !#strings.isEmpty(co.poMappings)}"
+                    style="font-family:'JetBrains Mono',monospace;font-size:0.72rem"
+                    th:text="'→ ' + ${co.poMappings}">→ PO1:3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action note -->
+      <div class="card" style="background:rgba(187,134,252,0.04);margin-top:18px">
+        <div style="padding:14px 4px">
+          <h4 style="color:var(--diu-blue);font-size:0.9rem;margin-bottom:8px">📋 For Accreditation</h4>
+          <p style="font-size:0.86rem;line-height:1.65;color:var(--text-secondary)">
+            This report is generated live from student-tagged project evidence — no manual entry.
+            Use the <strong>Export CSV</strong> button above for BAETE/NBA/ABET submission.
+            POs below 60% indicate areas where curriculum, electives, or project requirements need attention.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script th:inline="javascript">
+  // Radar chart of PO attainment
+  const poData = /*[[${poAttainment}]]*/ [];
+  if (poData &amp;&amp; poData.length > 0) {
+    const ctx = document.getElementById('poRadar').getContext('2d');
+    new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: poData.map(p => p.code),
+        datasets: [{
+          label: 'Attainment %',
+          data: poData.map(p => p.percent),
+          backgroundColor: 'rgba(187, 134, 252, 0.2)',
+          borderColor: 'rgba(187, 134, 252, 0.9)',
+          borderWidth: 2,
+          pointBackgroundColor: 'rgba(3, 218, 198, 0.9)',
+          pointRadius: 4
+        }, {
+          label: 'Target (60%)',
+          data: poData.map(() => 60),
+          backgroundColor: 'rgba(255,255,255,0)',
+          borderColor: 'rgba(237,28,36,0.08)',
+          borderWidth: 1,
+          borderDash: [5, 5],
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { color: '#7a7a8a', backdropColor: 'transparent', stepSize: 20 },
+            grid: { color: 'rgba(3,78,162,0.12)' },
+            angleLines: { color: 'rgba(3,78,162,0.12)' },
+            pointLabels: { color: '#e8e8f0', font: { size: 11, weight: '600' } }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#b8b8c8', font: { size: 11 } } }
+        }
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

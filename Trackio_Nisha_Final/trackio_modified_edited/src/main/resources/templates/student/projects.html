@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Projects — Student Portal</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('projects')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>My Projects</h1><p>Assignments, Projects &amp; Capstone Work</p></div>
+      <div class="topbar-actions">
+        <a th:href="@{/student/projects/new}" class="btn btn-primary">+ New Project</a>
+      </div>
+    </div>
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div class="card">
+        <div th:if="${#lists.isEmpty(projects)}" class="empty-state">
+          <div class="empty-icon">◈</div>
+          <h3>No projects yet</h3>
+          <p>Start by adding your first project or assignment.</p>
+          <a th:href="@{/student/projects/new}" class="btn btn-primary">+ Add Project</a>
+        </div>
+        <div th:unless="${#lists.isEmpty(projects)}" class="table-container">
+          <table>
+            <thead><tr>
+              <th>Title</th><th>Type</th><th>Course</th><th>Start Date</th><th>End Date</th><th>Supervisor</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+            <tr th:each="p : ${projects}">
+              <td class="td-name" th:text="${p.title}">Title</td>
+              <td><span class="badge"
+                        th:classappend="${p.projectType.name().toLowerCase() == 'capstone'} ? 'badge-capstone' : (${p.projectType.name().toLowerCase() == 'project'} ? 'badge-project' : 'badge-assignment')"
+                        th:text="${p.projectType}">Type</span></td>
+              <td th:text="${p.courseName}">Course</td>
+              <td th:text="${p.startDate}">Date</td>
+              <td th:text="${p.endDate != null ? p.endDate : '—'}">Date</td>
+              <td th:text="${p.supervisor != null ? p.supervisor : '—'}">Supervisor</td>
+              <td>
+                <div class="actions">
+                  <a th:href="@{/student/projects/edit/{id}(id=${p.id})}" class="btn btn-secondary btn-sm">Edit</a>
+                  <form th:action="@{/student/projects/delete/{id}(id=${p.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete this project?')">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

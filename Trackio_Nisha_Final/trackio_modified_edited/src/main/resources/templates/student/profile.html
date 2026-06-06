@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>My Profile — Trackio-DIU</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('profile')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>My Profile</h1>
+        <p>Your academic identity and portfolio</p>
+      </div>
+      <div class="topbar-actions" style="display:flex;gap:10px">
+        <a th:href="@{/student/cv}" class="btn btn-secondary">
+          <i class="fas fa-file-lines"></i>&nbsp; Generate CV
+        </a>
+        <a th:href="@{/student/profile/edit}" class="btn btn-primary">
+          <i class="fas fa-pen"></i>&nbsp; Edit Profile
+        </a>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+
+      <!-- Hero -->
+      <div class="profile-hero">
+        <div class="profile-avatar-lg"
+             th:with="hasPhoto=${student.profilePhotoUrl != null and !#strings.isEmpty(student.profilePhotoUrl)}"
+             th:style="${hasPhoto} ? |background-image:url('${student.profilePhotoUrl}');background-size:cover;background-position:center;color:transparent| : ''">
+          <span th:if="${!hasPhoto}" th:text="${student.name != null and !#strings.isEmpty(student.name) ? student.name.substring(0,1) : 'S'}">S</span>
+        </div>
+        <div class="profile-info">
+          <h2 th:text="${student.name}">Name</h2>
+          <p th:text="${student.department + ' · Batch ' + (student.batch != null ? student.batch : 'N/A')}">Dept</p>
+          <div class="profile-meta">
+            <div class="profile-meta-item">🪪 <span th:text="${student.studentId}"></span></div>
+            <div class="profile-meta-item">📋 <span th:text="${student.registrationNo != null ? student.registrationNo : 'N/A'}"></span></div>
+            <div class="profile-meta-item" th:if="${student.email}">✉ <span th:text="${student.email}"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bio -->
+      <div class="card" th:if="${student.bio}" style="margin-bottom:18px">
+        <div class="card-header"><span class="card-title">About</span></div>
+        <p style="margin-top:6px;line-height:1.6" th:text="${student.bio}">Bio text...</p>
+      </div>
+
+      <!-- Contact -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header"><span class="card-title">Contact Information</span></div>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value" th:text="${student.email != null ? student.email : 'Not provided'}">Email</div></div>
+          <div class="detail-item"><div class="detail-label">Phone</div><div class="detail-value" th:text="${student.phone != null ? student.phone : 'Not provided'}">Phone</div></div>
+          <div class="detail-item"><div class="detail-label">Address</div><div class="detail-value" th:text="${student.address != null ? student.address : 'Not provided'}">Address</div></div>
+          <div class="detail-item"><div class="detail-label">Department</div><div class="detail-value" th:text="${student.department != null ? student.department : 'Not provided'}">Dept</div></div>
+        </div>
+      </div>
+
+      <!-- Skills -->
+      <div class="card" th:if="${student.skills}" style="margin-bottom:18px">
+        <div class="card-header"><span class="card-title">Skills</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <span th:each="skill : ${#strings.arraySplit(student.skills, ',')}"
+                th:text="${#strings.trim(skill)}"
+                style="padding:6px 12px;background:rgba(3,78,162,0.10);border:1px solid rgba(3,78,162,0.25);border-radius:6px;font-size:0.82rem;font-weight:500;color:#034EA2">
+            Skill
+          </span>
+        </div>
+      </div>
+
+      <!-- Portfolio Links -->
+      <div class="card"
+           th:if="${student.githubUrl != null or student.linkedinUrl != null or student.portfolioUrl != null or student.cvUrl != null}">
+        <div class="card-header"><span class="card-title">Portfolio &amp; Online Accounts</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
+          <a th:if="${student.githubUrl}" th:href="${student.githubUrl}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fab fa-github"></i>&nbsp; GitHub
+          </a>
+          <a th:if="${student.linkedinUrl}" th:href="${student.linkedinUrl}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fab fa-linkedin"></i>&nbsp; LinkedIn
+          </a>
+          <a th:if="${student.portfolioUrl}" th:href="${student.portfolioUrl}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fas fa-globe"></i>&nbsp; Portfolio
+          </a>
+          <a th:if="${student.cvUrl}" th:href="${student.cvUrl}" target="_blank" class="btn btn-secondary btn-sm">
+            <i class="fas fa-file-pdf"></i>&nbsp; CV / Resume
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

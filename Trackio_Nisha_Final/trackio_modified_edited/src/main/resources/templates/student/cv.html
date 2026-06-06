@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Generate CV — Trackio-DIU</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <style>
+    .cv-hero {
+      padding: 32px;
+      background: linear-gradient(135deg, rgba(3,78,162,0.07) 0%, rgba(57,181,74,0.12) 100%);
+      border: 1px solid rgba(3,78,162,0.18);
+      border-radius: 16px;
+      margin-bottom: 28px;
+    }
+    .cv-hero h2 {
+      font-size: 1.8rem; font-weight: 700; margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .cv-hero h2 span {
+      background: linear-gradient(135deg, var(--diu-blue) 0%, var(--diu-green) 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .cv-hero p {
+      color: var(--text-muted, #b8b8c8); max-width: 640px; line-height: 1.6;
+    }
+
+    .preview-stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-top: 18px;
+    }
+    @media (max-width: 760px) { .preview-stats { grid-template-columns: repeat(2, 1fr); } }
+    .preview-stat {
+      padding: 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(3,78,162,0.10);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .preview-stat .num {
+      font-size: 1.4rem; font-weight: 700;
+      color: var(--diu-blue);
+    }
+    .preview-stat .label {
+      font-size: 0.75rem; color: var(--text-muted, #b8b8c8);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('cv')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Generate CV</h1>
+        <p>ATS-optimized, recruiter-ready, built from your portfolio</p>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <div th:if="${error}" class="alert alert-danger" style="margin-bottom:18px">
+        <i class="fas fa-exclamation-triangle"></i> <span th:text="${error}"></span>
+      </div>
+
+      <div class="cv-hero">
+        <h2>Build your <span>ATS-optimized CV</span> in seconds</h2>
+        <p>We'll pull your projects, certifications, internships, achievements, and skills into a one-page recruiter-ready CV — with strong action verbs, keyword density, and a clean ATS-safe layout. Print it as PDF directly from your browser.</p>
+      </div>
+
+      <div class="card" style="max-width:900px">
+        <form th:action="@{/student/cv/generate}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="mode" value="deterministic"/>
+
+          <h3 style="margin-bottom:14px;font-size:1rem;font-weight:700">1. Target the role <span style="font-weight:400;color:var(--text-muted,#b8b8c8)">(optional, improves keyword alignment)</span></h3>
+
+          <div class="form-grid">
+            <div class="form-group form-full">
+              <label>Target Job Title</label>
+              <input type="text" name="targetRole" placeholder="e.g. Junior Java Backend Developer"/>
+            </div>
+          </div>
+
+          <h3 style="margin-top:24px;margin-bottom:14px;font-size:1rem;font-weight:700">2. What's in your portfolio</h3>
+
+          <div class="preview-stats">
+            <div class="preview-stat">
+              <div class="num" th:text="${projectCount}">0</div>
+              <div class="label">Projects</div>
+            </div>
+            <div class="preview-stat">
+              <div class="num" th:text="${certCount}">0</div>
+              <div class="label">Certifications</div>
+            </div>
+            <div class="preview-stat">
+              <div class="num" th:text="${internshipCount}">0</div>
+              <div class="label">Internships</div>
+            </div>
+            <div class="preview-stat">
+              <div class="num" th:text="${achievementCount}">0</div>
+              <div class="label">Achievements</div>
+            </div>
+          </div>
+
+          <div style="margin-top:28px;display:flex;gap:12px;justify-content:flex-end">
+            <a th:href="@{/student/profile/edit}" class="btn btn-secondary">
+              <i class="fas fa-pen"></i>&nbsp; Update Profile First
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-rocket"></i>&nbsp; Generate CV
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

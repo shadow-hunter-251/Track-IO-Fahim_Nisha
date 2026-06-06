@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dashboard — Student Portal</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('dashboard')}"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Dashboard</h1>
+        <p>Welcome back, <span th:text="${student.name}">Student</span></p>
+      </div>
+      <div class="topbar-actions">
+        <span style="font-size:0.8rem;color:var(--diu-gray)" th:text="${student.department}"></span>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+
+      <!-- Profile Hero -->
+      <div class="profile-hero" style="margin-bottom:28px">
+        <div class="profile-avatar-lg"
+             th:with="hasPhoto=${student.profilePhotoUrl != null and !#strings.isEmpty(student.profilePhotoUrl)}"
+             th:style="${hasPhoto} ? |background-image:url('${student.profilePhotoUrl}');background-size:cover;background-position:center;color:transparent| : ''">
+          <span th:if="${!hasPhoto}" th:text="${student.name != null and !#strings.isEmpty(student.name) ? student.name.substring(0,1) : 'S'}">A</span>
+        </div>
+        <div class="profile-info">
+          <h2 th:text="${student.name}">Student Name</h2>
+          <p th:text="${student.department + ' · Batch ' + (student.batch != null ? student.batch : 'N/A')}">Department</p>
+          <div class="profile-meta">
+            <div class="profile-meta-item">🪪 <span th:text="${student.studentId}"></span></div>
+            <div class="profile-meta-item">📋 <span th:text="${student.registrationNo}"></span></div>
+            <div class="profile-meta-item" th:if="${student.email}">✉ <span th:text="${student.email}"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">◈</div>
+          <div class="stat-value" th:text="${projectCount}">0</div>
+          <div class="stat-label">Projects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✦</div>
+          <div class="stat-value" th:text="${certCount}">0</div>
+          <div class="stat-label">Certifications</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">★</div>
+          <div class="stat-value" th:text="${achievementCount}">0</div>
+          <div class="stat-label">Achievements</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚙</div>
+          <div class="stat-value" th:text="${internshipCount}">0</div>
+          <div class="stat-label">Internships</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <!-- Recent Projects -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Projects</span>
+            <a th:href="@{/student/projects}" class="btn btn-secondary btn-sm">View All</a>
+          </div>
+          <div th:if="${#lists.isEmpty(recentProjects)}" class="empty-state" style="padding:30px">
+            <p style="font-size:0.82rem">No projects yet.</p>
+          </div>
+          <div th:each="p : ${recentProjects}" style="padding:12px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-weight:600;font-size:0.875rem;color:var(--text-primary)" th:text="${p.title}">Title</div>
+                <div style="font-size:0.75rem;color:var(--diu-gray);margin-top:2px" th:text="${p.courseName}">Course</div>
+              </div>
+              <span class="badge"
+                    th:classappend="${p.projectType.name().toLowerCase() == 'capstone'} ? 'badge-capstone' : (${p.projectType.name().toLowerCase() == 'project'} ? 'badge-project' : 'badge-assignment')"
+                    th:text="${p.projectType}">Type</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Certifications -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Certifications</span>
+            <a th:href="@{/student/certifications}" class="btn btn-secondary btn-sm">View All</a>
+          </div>
+          <div th:if="${#lists.isEmpty(recentCerts)}" class="empty-state" style="padding:30px">
+            <p style="font-size:0.82rem">No certifications yet.</p>
+          </div>
+          <div th:each="c : ${recentCerts}" style="padding:12px 0;border-bottom:1px solid var(--border)">
+            <div style="font-weight:600;font-size:0.875rem;color:var(--text-primary)" th:text="${c.title}">Title</div>
+            <div style="font-size:0.75rem;color:var(--diu-gray);margin-top:2px" th:text="${c.issuingOrganization}">Org</div>
+            <div style="font-size:0.72rem;color:var(--wine);margin-top:3px" th:text="'Issued: ' + ${c.issueDate}">Date</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <span class="card-title">Quick Actions</span>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a th:href="@{/student/projects/new}" class="btn btn-primary">+ Add Project</a>
+          <a th:href="@{/student/certifications/new}" class="btn btn-primary">+ Add Certification</a>
+          <a th:href="@{/student/achievements/new}" class="btn btn-primary">+ Add Achievement</a>
+          <a th:href="@{/student/internships/new}" class="btn btn-primary">+ Add Internship</a>
+          <a th:href="@{/student/report}" class="btn btn-secondary">▤ View Report</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

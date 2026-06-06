@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Course Outcomes — Trackio-DIU</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <style>
+    .matrix-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .matrix-table th, .matrix-table td {
+      padding: 10px 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .matrix-table th.co-col {
+      text-align: left;
+      background: rgba(3,78,162,0.06);
+      font-weight: 600;
+      color: var(--text-primary);
+      max-width: 280px;
+    }
+    .matrix-table td.co-cell {
+      text-align: left;
+      background: rgba(187,134,252,0.04);
+    }
+    .matrix-table thead th {
+      background: rgba(3,78,162,0.12);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-primary);
+    }
+    .w-cell {
+      font-weight: 700;
+      width: 50px;
+    }
+    .w-3 { background: linear-gradient(135deg,#a855f7,#7c3aed); color:white }
+    .w-2 { background: rgba(168,85,247,0.4); color: white }
+    .w-1 { background: rgba(168,85,247,0.18); color:var(--text-primary) }
+    .w-0 { color: var(--diu-gray); }
+
+    .po-pick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .po-pick {
+      display:flex;align-items:center;gap:10px;
+      padding:10px 12px;border:1px solid var(--border);border-radius:6px;
+      background: rgba(255,255,255,0.02);
+    }
+    .po-pick input { margin: 0 }
+    .po-pick select {
+      background: var(--abyss);border:1px solid var(--border);
+      color: var(--text-primary);font-size:0.78rem;padding:4px 6px;border-radius:4px;
+    }
+    .po-pick-label {
+      font-size:0.82rem;color:var(--text-primary);
+      flex:1;cursor:pointer
+    }
+    .po-pick-label small { color:var(--diu-gray);display:block;font-size:0.72rem }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('obe-courses')}"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1 th:text="${course.courseCode + ' — ' + course.courseName}">Course</h1>
+        <p>Define Course Outcomes (COs) and map each to Program Outcomes (POs)</p>
+      </div>
+      <div class="topbar-actions">
+        <a th:href="@{/teacher/obe/courses}" class="btn btn-secondary">← All Courses</a>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div th:if="${error}" class="alert alert-danger">✗ &nbsp;<span th:text="${error}"></span></div>
+
+      <!-- CO×PO MATRIX -->
+      <div class="card" style="margin-bottom:22px">
+        <div class="card-header">
+          <span class="card-title">CO × PO Mapping Matrix</span>
+          <span style="font-size:0.78rem;color:var(--diu-gray)">
+            3=High · 2=Medium · 1=Low · blank=None
+          </span>
+        </div>
+
+        <div th:if="${#lists.isEmpty(cos)}" class="empty-state" style="padding:30px">
+          <p style="font-size:0.9rem">No course outcomes yet. Add your first CO below to see the matrix.</p>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(cos)}" style="overflow-x:auto;margin-top:10px">
+          <table class="matrix-table">
+            <thead>
+            <tr>
+              <th class="co-col">Course Outcome</th>
+              <th th:each="po : ${pos}" th:text="${po.code}" th:title="${po.shortName}">PO1</th>
+              <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${matrixRows}">
+              <td class="co-cell">
+                <strong style="color:var(--diu-blue)" th:text="${row.co.code}">CO1</strong>
+                <span th:if="${row.co.bloomLevel != null}"
+                      style="margin-left:6px;font-size:0.65rem;padding:1px 6px;border-radius:8px;background:var(--diu-blue-pale);color:var(--diu-blue)"
+                      th:text="${row.co.bloomLevel}">APPLY</span>
+                <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:3px;line-height:1.4"
+                     th:text="${row.co.statement}">Statement</div>
+              </td>
+              <td th:each="po : ${pos}"
+                  class="w-cell"
+                  th:classappend="'w-' + ${row.weights[po.code]}"
+                  th:text="${row.weights[po.code] > 0 ? row.weights[po.code] : '—'}">3</td>
+              <td>
+                <form th:action="@{/teacher/obe/outcomes/{id}/delete(id=${row.co.id})}"
+                      method="post" style="display:inline"
+                      onsubmit="return confirm('Delete this CO?')">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <button class="btn btn-danger btn-sm">Delete</button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ADD NEW CO -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">+ Add Course Outcome</span>
+        </div>
+
+        <form th:action="@{/teacher/obe/courses/{cid}/outcomes/save(cid=${course.id})}"
+              th:object="${newCo}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label>CO Code <span style="color:var(--soft-red)">*</span></label>
+              <input type="text" th:field="*{code}" placeholder="e.g. CO1" required/>
+            </div>
+
+            <div class="form-group">
+              <label>Bloom's Taxonomy Level</label>
+              <select th:field="*{bloomLevel}">
+                <option value="REMEMBER">Remember</option>
+                <option value="UNDERSTAND">Understand</option>
+                <option value="APPLY" selected>Apply</option>
+                <option value="ANALYZE">Analyze</option>
+                <option value="EVALUATE">Evaluate</option>
+                <option value="CREATE">Create</option>
+              </select>
+            </div>
+
+            <div class="form-group form-full">
+              <label>Outcome Statement <span style="color:var(--soft-red)">*</span></label>
+              <textarea th:field="*{statement}" rows="2" required
+                placeholder="e.g. Apply object-oriented design principles to model real-world systems."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Target Attainment %</label>
+              <input type="number" th:field="*{targetAttainment}" value="60" min="1" max="100"/>
+              <p class="form-hint">Default 60% — minimum CO attainment to be considered met</p>
+            </div>
+          </div>
+
+          <div style="margin-top:22px">
+            <label style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:10px;display:block">
+              Map to Program Outcomes (POs)
+            </label>
+            <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:14px;line-height:1.55">
+              Check each PO this CO contributes to, then set the strength (3=High, 2=Medium, 1=Low).
+              <br/>The Washington Accord defines 12 POs — they cover knowledge, design, ethics, teamwork, communication, etc.
+            </p>
+
+            <div class="po-pick-grid">
+              <label class="po-pick" th:each="po : ${pos}">
+                <input type="checkbox" name="poMap" th:value="${po.code} + ':3'"
+                       th:attr="data-po=${po.code}" class="po-checkbox"/>
+                <div class="po-pick-label">
+                  <strong th:text="${po.code}">PO1</strong>
+                  <small th:text="${po.shortName}">Knowledge</small>
+                </div>
+                <select class="po-weight" th:attr="data-po=${po.code}">
+                  <option value="3" selected>High (3)</option>
+                  <option value="2">Med (2)</option>
+                  <option value="1">Low (1)</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary">+ Add Course Outcome</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // When a PO weight changes, update the matching checkbox value so it submits with the right weight
+  document.querySelectorAll('.po-weight').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const po = sel.getAttribute('data-po');
+      const cb = document.querySelector('.po-checkbox[data-po="' + po + '"]');
+      if (cb) cb.value = po + ':' + sel.value;
+    });
+  });
+</script>
+
+</body>
+</html>

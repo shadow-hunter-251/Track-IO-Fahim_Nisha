@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Reports</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('reports')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>Progress Reports</h1><p>Generate competency reports for individual students</p></div>
+    </div>
+    <div class="content-area">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Select a Student to Generate Report</span></div>
+        <div th:if="${#lists.isEmpty(students)}" class="empty-state">
+          <div class="empty-icon">▤</div>
+          <h3>No students available</h3>
+          <a th:href="@{/teacher/students/new}" class="btn btn-primary">Add Students First</a>
+        </div>
+        <div th:unless="${#lists.isEmpty(students)}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:4px">
+            <div th:each="s : ${students}"
+                 style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;align-items:center;gap:14px;transition:all 0.2s"
+                 onmouseover="this.style.borderColor='var(--border2)'"
+                 onmouseout="this.style.borderColor='var(--border)'">
+              <div class="user-avatar" style="width:44px;height:44px;font-size:16px;flex-shrink:0" th:text="${s.name != null and !#strings.isEmpty(s.name) ? s.name.substring(0,1) : 'S'}">S</div>
+              <div style="min-width:0;flex:1">
+                <div style="font-weight:600;color:var(--text-primary)" th:text="${s.name}">Name</div>
+                <div style="font-size:0.75rem;color:var(--diu-gray);margin-top:2px" th:text="${s.department + ' · ' + (s.batch != null ? s.batch : 'N/A')}">Dept</div>
+                <div style="font-size:0.72rem;color:var(--wine);margin-top:2px" th:text="${s.studentId}">ID</div>
+              </div>
+              <a th:href="@{/teacher/reports/student/{id}(id=${s.id})}" class="btn btn-primary btn-sm">View →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

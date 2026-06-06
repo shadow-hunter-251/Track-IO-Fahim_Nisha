@@ -1,0 +1,1392 @@
+package com.portfolio.tracker.controller;
+
+import com.portfolio.tracker.entity.*;
+import com.portfolio.tracker.repository.*;
+
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.time.LocalDateTime;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
+@Controller
+@RequestMapping("/student")
+
+public class StudentPortalController {
+
+    private final AppUserRepository appUserRepository;
+    private final StudentRepository studentRepository;
+    private final ProjectRepository projectRepository;
+    private final CertificationRepository certificationRepository;
+    private final AchievementRepository achievementRepository;
+    private final InternshipRepository internshipRepository;
+    private final SkillRepository skillRepository;
+    private final SkillEndorsementRepository skillEndorsementRepository;
+    private final CourseRepository courseRepository;
+    private final CourseOutcomeRepository courseOutcomeRepository;
+
+    public StudentPortalController(AppUserRepository appUserRepository,
+                                   StudentRepository studentRepository,
+                                   ProjectRepository projectRepository,
+                                   CertificationRepository certificationRepository,
+                                   AchievementRepository achievementRepository,
+                                   InternshipRepository internshipRepository,
+                                   SkillRepository skillRepository,
+                                   SkillEndorsementRepository skillEndorsementRepository,
+                                   CourseRepository courseRepository,
+                                   CourseOutcomeRepository courseOutcomeRepository) {
+        this.appUserRepository = appUserRepository;
+        this.studentRepository = studentRepository;
+        this.projectRepository = projectRepository;
+        this.certificationRepository = certificationRepository;
+        this.achievementRepository = achievementRepository;
+        this.internshipRepository = internshipRepository;
+        this.skillRepository = skillRepository;
+        this.skillEndorsementRepository = skillEndorsementRepository;
+        this.courseRepository = courseRepository;
+        this.courseOutcomeRepository = courseOutcomeRepository;
+    }
+
+    private Student getCurrentStudent(UserDetails userDetails) {
+        AppUser user = appUserRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        return studentRepository.findById(user.getStudentId()).orElseThrow();
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        Long sid = student.getId();
+        model.addAttribute("student", student);
+        model.addAttribute("projectCount", projectRepository.findByStudentId(sid).size());
+        model.addAttribute("certCount", certificationRepository.findByStudentId(sid).size());
+        model.addAttribute("achievementCount", achievementRepository.findByStudentId(sid).size());
+        model.addAttribute("internshipCount", internshipRepository.findByStudentId(sid).size());
+        model.addAttribute("recentProjects", projectRepository.findByStudentId(sid).stream().limit(3).toList());
+        model.addAttribute("recentCerts", certificationRepository.findByStudentId(sid).stream().limit(3).toList());
+        return "student/dashboard";
+    }
+
+    // ---- Profile ----
+    @GetMapping("/profile")
+    public String profile(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        return "student/profile";
+    }
+
+    @PostMapping("/profile/update")
+    public String updateProfile(@AuthenticationPrincipal UserDetails userDetails,
+                                @ModelAttribute Student form,
+                                @RequestParam(value = "photoFile", required = false) org.springframework.web.multipart.MultipartFile photoFile,
+                                @RequestParam(value = "removePhoto", required = false) String removePhoto,
+                                RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+
+        // Basic / contact
+        student.setName(form.getName());
+        student.setEmail(form.getEmail());
+        student.setPhone(form.getPhone());
+        student.setAddress(form.getAddress());
+
+        // Portfolio links
+        student.setGithubUrl(emptyToNull(form.getGithubUrl()));
+        student.setLinkedinUrl(emptyToNull(form.getLinkedinUrl()));
+        student.setPortfolioUrl(emptyToNull(form.getPortfolioUrl()));
+        student.setCvUrl(emptyToNull(form.getCvUrl()));
+
+        // Profile content
+        student.setBio(emptyToNull(form.getBio()));
+        student.setSkills(emptyToNull(form.getSkills()));
+
+        // Photo handling -- three cases:
+        //   1. user clicked "Remove" -> clear it
+        //   2. user uploaded a new file -> save and replace
+        //   3. user pasted a URL (form.profilePhotoUrl) -> keep that
+        //   4. nothing -> keep existing
+        if ("yes".equals(removePhoto)) {
+            student.setProfilePhotoUrl(null);
+        } else {
+            try {
+                String newPath = com.portfolio.tracker.util.PhotoUploadUtil.save(photoFile, form.getProfilePhotoUrl());
+                if (newPath != null) {
+                    student.setProfilePhotoUrl(newPath);
+                }
+            } catch (IllegalArgumentException ex) {
+                ra.addFlashAttribute("error", ex.getMessage());
+                return "redirect:/student/profile/edit";
+            } catch (java.io.IOException ex) {
+                ra.addFlashAttribute("error", "Could not save profile photo. Please try again.");
+                return "redirect:/student/profile/edit";
+            }
+        }
+
+        studentRepository.save(student);
+        ra.addFlashAttribute("success", "Profile updated successfully!");
+        return "redirect:/student/profile";
+    }
+
+    private String emptyToNull(String s) {
+        return (s == null || s.trim().isEmpty()) ? null : s.trim();
+    }
+
+    // ============================================================
+    //  CV generation
+    // ============================================================
+
+    @GetMapping("/cv")
+    public String cvHub(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        Long sid = student.getId();
+        model.addAttribute("student", student);
+        model.addAttribute("projectCount", projectRepository.findByStudentId(sid).size());
+        model.addAttribute("certCount", certificationRepository.findByStudentId(sid).size());
+        model.addAttribute("internshipCount", internshipRepository.findByStudentId(sid).size());
+        model.addAttribute("achievementCount", achievementRepository.findByStudentId(sid).size());
+        return "student/cv";
+    }
+
+    @PostMapping("/cv/generate")
+    public String generateCv(@AuthenticationPrincipal UserDetails userDetails,
+                             @RequestParam(value = "mode", defaultValue = "deterministic") String mode,
+                             @RequestParam(value = "targetRole", required = false) String targetRole,
+                             @RequestParam(value = "targetJobDescription", required = false) String targetJobDescription,
+                             Model model,
+                             RedirectAttributes ra) {
+
+        Student student = getCurrentStudent(userDetails);
+        Long sid = student.getId();
+        java.util.List<Project> projects = projectRepository.findByStudentId(sid);
+        java.util.List<Certification> certs = certificationRepository.findByStudentId(sid);
+        java.util.List<Internship> internships = internshipRepository.findByStudentId(sid);
+        java.util.List<Achievement> achievements = achievementRepository.findByStudentId(sid);
+
+        model.addAttribute("student", student);
+        model.addAttribute("targetRole", targetRole);
+        model.addAttribute("targetJobDescription", targetJobDescription);
+        model.addAttribute("mode", mode);
+
+        if ("ai".equalsIgnoreCase(mode)) {
+            String apiKey = System.getenv("ANTHROPIC_API_KEY");
+            try {
+                String aiText = com.portfolio.tracker.util.CvGenerator.buildWithClaude(
+                    student, projects, certs, internships, achievements,
+                    targetRole, targetJobDescription, apiKey);
+                model.addAttribute("aiText", aiText);
+                model.addAttribute("cv", null);
+                return "student/cv-preview";
+            } catch (Exception ex) {
+                ra.addFlashAttribute("error",
+                    "AI generation encountered an issue: " + ex.getMessage()
+                    + " \u2014 falling back to standard CV mode.");
+                return "redirect:/student/cv";
+            }
+        }
+
+        // Deterministic mode
+        com.portfolio.tracker.util.CvGenerator.CvData cv =
+            com.portfolio.tracker.util.CvGenerator.buildDeterministic(
+                student, projects, certs, internships, achievements, targetRole);
+
+        model.addAttribute("cv", cv);
+        return "student/cv-preview";
+    }
+
+    @GetMapping("/profile/edit")
+    public String editProfile(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        return "student/profile-edit";
+    }
+
+    // ---- Projects ----
+    @GetMapping("/projects")
+    public String projects(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("projects", projectRepository.findByStudentId(student.getId()));
+        return "student/projects";
+    }
+
+    @GetMapping("/projects/new")
+    public String newProjectForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("project", new Project());
+        model.addAttribute("types", Project.ProjectType.values());
+        model.addAttribute("courses", courseRepository.findAllByOrderByCourseCodeAsc());
+        model.addAttribute("allCos", courseOutcomeRepository.findAll());
+        model.addAttribute("selectedCoIds", new java.util.ArrayList<Long>());
+        return "student/project-form";
+    }
+
+    @PostMapping("/projects/save")
+    public String saveProject(@AuthenticationPrincipal UserDetails userDetails,
+                              @ModelAttribute Project project,
+                              @RequestParam(value = "selectedCoIds", required = false) List<Long> selectedCoIds,
+                              RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        project.setStudent(student);
+        project.setProjectId("PRJ-" + System.currentTimeMillis());
+        if (selectedCoIds != null && !selectedCoIds.isEmpty()) {
+            project.setCourseOutcomeIds(selectedCoIds.stream()
+                    .map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        }
+        projectRepository.save(project);
+        ra.addFlashAttribute("success", "Project saved" +
+                (selectedCoIds != null && !selectedCoIds.isEmpty()
+                        ? " and tagged to " + selectedCoIds.size() + " course outcome(s)."
+                        : "."));
+        return "redirect:/student/projects";
+    }
+
+    @GetMapping("/projects/edit/{id}")
+    public String editProject(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        Project project = projectRepository.findById(id).orElseThrow();
+        model.addAttribute("student", student);
+        model.addAttribute("project", project);
+        model.addAttribute("types", Project.ProjectType.values());
+        model.addAttribute("courses", courseRepository.findAllByOrderByCourseCodeAsc());
+        model.addAttribute("allCos", courseOutcomeRepository.findAll());
+
+        // Parse the existing CO IDs into a List<Long> for the template to compare against
+        List<Long> selectedCoIds = new java.util.ArrayList<>();
+        if (project.getCourseOutcomeIds() != null && !project.getCourseOutcomeIds().isBlank()) {
+            for (String tok : project.getCourseOutcomeIds().split(",")) {
+                try { selectedCoIds.add(Long.parseLong(tok.trim())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        model.addAttribute("selectedCoIds", selectedCoIds);
+        return "student/project-form";
+    }
+
+    @PostMapping("/projects/update/{id}")
+    public String updateProject(@PathVariable Long id, @ModelAttribute Project form,
+                                @RequestParam(value = "selectedCoIds", required = false) List<Long> selectedCoIds,
+                                @AuthenticationPrincipal UserDetails userDetails, RedirectAttributes ra) {
+        Project project = projectRepository.findById(id).orElseThrow();
+        project.setTitle(form.getTitle());
+        project.setDescription(form.getDescription());
+        project.setCourseName(form.getCourseName());
+        project.setStartDate(form.getStartDate());
+        project.setEndDate(form.getEndDate());
+        project.setSupervisor(form.getSupervisor());
+        project.setProjectType(form.getProjectType());
+        project.setCourseId(form.getCourseId());
+
+        if (selectedCoIds != null && !selectedCoIds.isEmpty()) {
+            project.setCourseOutcomeIds(selectedCoIds.stream()
+                    .map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        } else {
+            project.setCourseOutcomeIds(null);
+        }
+        projectRepository.save(project);
+        ra.addFlashAttribute("success", "Project updated!");
+        return "redirect:/student/projects";
+    }
+
+    @PostMapping("/projects/delete/{id}")
+    public String deleteProject(@PathVariable Long id, RedirectAttributes ra) {
+        projectRepository.deleteById(id);
+        ra.addFlashAttribute("success", "Project deleted.");
+        return "redirect:/student/projects";
+    }
+
+    // ---- Certifications ----
+    @GetMapping("/certifications")
+    public String certifications(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("certs", certificationRepository.findByStudentId(student.getId()));
+        return "student/certifications";
+    }
+
+    @GetMapping("/certifications/new")
+    public String newCertForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("cert", new Certification());
+        return "student/cert-form";
+    }
+
+    @PostMapping("/certifications/save")
+    public String saveCert(@AuthenticationPrincipal UserDetails userDetails,
+                           @ModelAttribute Certification cert, RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        cert.setStudent(student);
+        cert.setCertificationId("CERT-" + System.currentTimeMillis());
+        certificationRepository.save(cert);
+        ra.addFlashAttribute("success", "Certification added!");
+        return "redirect:/student/certifications";
+    }
+
+    @GetMapping("/certifications/edit/{id}")
+    public String editCert(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("cert", certificationRepository.findById(id).orElseThrow());
+        return "student/cert-form";
+    }
+
+    @PostMapping("/certifications/update/{id}")
+    public String updateCert(@PathVariable Long id, @ModelAttribute Certification form, RedirectAttributes ra) {
+        Certification cert = certificationRepository.findById(id).orElseThrow();
+        cert.setTitle(form.getTitle());
+        cert.setIssuingOrganization(form.getIssuingOrganization());
+        cert.setIssueDate(form.getIssueDate());
+        cert.setExpiryDate(form.getExpiryDate());
+        cert.setCertificateLink(form.getCertificateLink());
+        certificationRepository.save(cert);
+        ra.addFlashAttribute("success", "Certification updated!");
+        return "redirect:/student/certifications";
+    }
+
+    @PostMapping("/certifications/delete/{id}")
+    public String deleteCert(@PathVariable Long id, RedirectAttributes ra) {
+        certificationRepository.deleteById(id);
+        ra.addFlashAttribute("success", "Certification removed.");
+        return "redirect:/student/certifications";
+    }
+
+    // ---- Achievements ----
+    @GetMapping("/achievements")
+    public String achievements(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("achievements", achievementRepository.findByStudentId(student.getId()));
+        return "student/achievements";
+    }
+
+    @GetMapping("/achievements/new")
+    public String newAchievementForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("achievement", new Achievement());
+        return "student/achievement-form";
+    }
+
+    @PostMapping("/achievements/save")
+    public String saveAchievement(@AuthenticationPrincipal UserDetails userDetails,
+                                  @ModelAttribute Achievement achievement, RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        achievement.setStudent(student);
+        achievement.setAchievementId("ACH-" + System.currentTimeMillis());
+        achievementRepository.save(achievement);
+        ra.addFlashAttribute("success", "Achievement added!");
+        return "redirect:/student/achievements";
+    }
+
+    @GetMapping("/achievements/edit/{id}")
+    public String editAchievement(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("achievement", achievementRepository.findById(id).orElseThrow());
+        return "student/achievement-form";
+    }
+
+    @PostMapping("/achievements/update/{id}")
+    public String updateAchievement(@PathVariable Long id, @ModelAttribute Achievement form, RedirectAttributes ra) {
+        Achievement a = achievementRepository.findById(id).orElseThrow();
+        a.setEventName(form.getEventName());
+        a.setPosition(form.getPosition());
+        a.setOrganizer(form.getOrganizer());
+        a.setDate(form.getDate());
+        a.setProofLink(form.getProofLink());
+        achievementRepository.save(a);
+        ra.addFlashAttribute("success", "Achievement updated!");
+        return "redirect:/student/achievements";
+    }
+
+    @PostMapping("/achievements/delete/{id}")
+    public String deleteAchievement(@PathVariable Long id, RedirectAttributes ra) {
+        achievementRepository.deleteById(id);
+        ra.addFlashAttribute("success", "Achievement removed.");
+        return "redirect:/student/achievements";
+    }
+
+    // ---- Internships ----
+    @GetMapping("/internships")
+    public String internships(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("internships", internshipRepository.findByStudentId(student.getId()));
+        model.addAttribute("statuses", Internship.Status.values());
+        return "student/internships";
+    }
+
+    @GetMapping("/internships/new")
+    public String newInternshipForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("internship", new Internship());
+        model.addAttribute("statuses", Internship.Status.values());
+        return "student/internship-form";
+    }
+
+    @PostMapping("/internships/save")
+    public String saveInternship(@AuthenticationPrincipal UserDetails userDetails,
+                                 @ModelAttribute Internship internship, RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        internship.setStudent(student);
+        internship.setRecordId("INT-" + System.currentTimeMillis());
+        internshipRepository.save(internship);
+        ra.addFlashAttribute("success", "Internship record added!");
+        return "redirect:/student/internships";
+    }
+
+    @GetMapping("/internships/edit/{id}")
+    public String editInternship(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("internship", internshipRepository.findById(id).orElseThrow());
+        model.addAttribute("statuses", Internship.Status.values());
+        return "student/internship-form";
+    }
+
+    @PostMapping("/internships/update/{id}")
+    public String updateInternship(@PathVariable Long id, @ModelAttribute Internship form, RedirectAttributes ra) {
+        Internship i = internshipRepository.findById(id).orElseThrow();
+        i.setCompanyName(form.getCompanyName());
+        i.setRole(form.getRole());
+        i.setStartDate(form.getStartDate());
+        i.setEndDate(form.getEndDate());
+        i.setStatus(form.getStatus());
+        internshipRepository.save(i);
+        ra.addFlashAttribute("success", "Internship updated!");
+        return "redirect:/student/internships";
+    }
+
+    @PostMapping("/internships/delete/{id}")
+    public String deleteInternship(@PathVariable Long id, RedirectAttributes ra) {
+        internshipRepository.deleteById(id);
+        ra.addFlashAttribute("success", "Record removed.");
+        return "redirect:/student/internships";
+    }
+
+    // ---- Skills (Student CRUD - read-only verified, can add own skills) ----
+    @GetMapping("/skills")
+    public String skills(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("skills", skillRepository.findByStudentId(student.getId()));
+        return "student/skills";
+    }
+
+    @GetMapping("/skills/new")
+    public String newSkillForm(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("skill", new Skill());
+        model.addAttribute("levels", Skill.Level.values());
+        model.addAttribute("projects", projectRepository.findByStudentId(getCurrentStudent(userDetails).getId()));
+        return "student/skill-form";
+    }
+
+    @PostMapping("/skills/save")
+    public String saveSkill(@AuthenticationPrincipal UserDetails userDetails,
+                            @ModelAttribute Skill skill,
+                            @RequestParam(required = false) String linkedProjectId,
+                            RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        skill.setSkillId("SK-" + System.currentTimeMillis());
+        skill.setVerified(false); // Students cannot self-verify; teacher verifies
+        skill.setLinkedProjectId(linkedProjectId);
+        skill.setStudentId(student.getId());
+        skillRepository.save(skill);
+        ra.addFlashAttribute("success", "Skill added! A teacher will verify it.");
+        return "redirect:/student/skills";
+    }
+
+    @GetMapping("/skills/edit/{id}")
+    public String editSkill(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Skill skill = skillRepository.findById(id).orElseThrow();
+        // Prevent editing verified skills
+        if (skill.isVerified()) {
+            return "redirect:/student/skills";
+        }
+        model.addAttribute("student", getCurrentStudent(userDetails));
+        model.addAttribute("skill", skill);
+        model.addAttribute("levels", Skill.Level.values());
+        model.addAttribute("projects", projectRepository.findByStudentId(getCurrentStudent(userDetails).getId()));
+        return "student/skill-form";
+    }
+
+    @PostMapping("/skills/update/{id}")
+    public String updateSkill(@PathVariable Long id, @ModelAttribute Skill form,
+                              @RequestParam(required = false) String linkedProjectId,
+                              RedirectAttributes ra) {
+        Skill s = skillRepository.findById(id).orElseThrow();
+        if (s.isVerified()) {
+            ra.addFlashAttribute("error", "Cannot edit a verified skill.");
+            return "redirect:/student/skills";
+        }
+        s.setSkillName(form.getSkillName());
+        s.setCategory(form.getCategory());
+        s.setLevel(form.getLevel());
+        s.setLinkedCourse(form.getLinkedCourse());
+        s.setLinkedProjectId(linkedProjectId);
+        skillRepository.save(s);
+        ra.addFlashAttribute("success", "Skill updated!");
+        return "redirect:/student/skills";
+    }
+
+    @PostMapping("/skills/delete/{id}")
+    public String deleteSkill(@PathVariable Long id, RedirectAttributes ra) {
+        Skill s = skillRepository.findById(id).orElseThrow();
+        if (s.isVerified()) {
+            ra.addFlashAttribute("error", "Cannot delete a verified skill.");
+            return "redirect:/student/skills";
+        }
+        skillRepository.deleteById(id);
+        ra.addFlashAttribute("success", "Skill removed.");
+        return "redirect:/student/skills";
+    }
+
+    // ---- Report ----
+    @GetMapping("/report")
+    public String report(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        Long sid = student.getId();
+        model.addAttribute("student", student);
+        model.addAttribute("projects", projectRepository.findByStudentId(sid));
+        model.addAttribute("certs", certificationRepository.findByStudentId(sid));
+        model.addAttribute("achievements", achievementRepository.findByStudentId(sid));
+        model.addAttribute("internships", internshipRepository.findByStudentId(sid));
+        model.addAttribute("skills", skillRepository.findAll());
+        model.addAttribute("endorsements",
+                skillEndorsementRepository.findByStudentIdOrderByRequestedAtDesc(sid));
+        return "student/report";
+    }
+
+    // ==========================================================
+    //  FEATURE 1 -- Skill Endorsement (Student side)
+    // ==========================================================
+
+    /** "My Endorsements" page -- see all my requests and their status. */
+    @GetMapping("/endorsements")
+    public String myEndorsements(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        model.addAttribute("endorsements",
+                skillEndorsementRepository.findByStudentIdOrderByRequestedAtDesc(student.getId()));
+        return "student/endorsements";
+    }
+
+    /** Form to request an endorsement for a specific skill. */
+    @GetMapping("/skills/{skillId}/request-endorsement")
+    public String requestEndorsementForm(@PathVariable Long skillId,
+                                         @AuthenticationPrincipal UserDetails userDetails,
+                                         Model model) {
+        Student student = getCurrentStudent(userDetails);
+        Skill skill = skillRepository.findById(skillId).orElseThrow();
+
+        // Only show teachers (so students can pick who to ask)
+        List<AppUser> teachers = appUserRepository.findAll().stream()
+                .filter(u -> u.getRole() == AppUser.Role.TEACHER)
+                .toList();
+
+        model.addAttribute("student", student);
+        model.addAttribute("skill", skill);
+        model.addAttribute("teachers", teachers);
+        model.addAttribute("projects", projectRepository.findByStudentId(student.getId()));
+        return "student/endorsement-request";
+    }
+
+    /** Save the endorsement request. */
+    @PostMapping("/skills/{skillId}/request-endorsement")
+    public String submitEndorsementRequest(@PathVariable Long skillId,
+                                           @RequestParam Long teacherUserId,
+                                           @RequestParam(required = false) String studentNote,
+                                           @RequestParam(required = false) String evidenceProjectId,
+                                           @AuthenticationPrincipal UserDetails userDetails,
+                                           RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        Skill skill = skillRepository.findById(skillId).orElseThrow();
+
+        // Look up teacher
+        AppUser teacher = appUserRepository.findById(teacherUserId).orElse(null);
+        if (teacher == null || teacher.getRole() != AppUser.Role.TEACHER) {
+            ra.addFlashAttribute("error", "Selected teacher not found.");
+            return "redirect:/student/skills";
+        }
+
+        // Prevent duplicate pending request to same teacher for same skill
+        boolean alreadyPending = skillEndorsementRepository
+                .existsBySkillIdAndTeacherUserIdAndStatus(skillId, teacherUserId,
+                        SkillEndorsement.Status.PENDING);
+        if (alreadyPending) {
+            ra.addFlashAttribute("error", "You already have a pending request to this teacher for this skill.");
+            return "redirect:/student/endorsements";
+        }
+
+        SkillEndorsement e = new SkillEndorsement();
+        e.setSkillId(skillId);
+        e.setStudentId(student.getId());
+        e.setTeacherUserId(teacherUserId);
+        e.setStudentName(student.getName());
+        e.setTeacherName(teacher.getTeacherName());
+        e.setSkillName(skill.getSkillName());
+        e.setStudentNote(studentNote);
+        e.setEvidenceProjectId(evidenceProjectId);
+        e.setStatus(SkillEndorsement.Status.PENDING);
+        e.setRequestedAt(LocalDateTime.now());
+        skillEndorsementRepository.save(e);
+
+        ra.addFlashAttribute("success", "Endorsement requested. " + teacher.getTeacherName()
+                + " will review it.");
+        return "redirect:/student/endorsements";
+    }
+
+    /** Cancel/withdraw a pending request. */
+    @PostMapping("/endorsements/{id}/withdraw")
+    public String withdrawEndorsement(@PathVariable Long id,
+                                      @AuthenticationPrincipal UserDetails userDetails,
+                                      RedirectAttributes ra) {
+        Student student = getCurrentStudent(userDetails);
+        SkillEndorsement e = skillEndorsementRepository.findById(id).orElse(null);
+        if (e == null || !e.getStudentId().equals(student.getId())) {
+            ra.addFlashAttribute("error", "Endorsement not found.");
+            return "redirect:/student/endorsements";
+        }
+        if (e.getStatus() != SkillEndorsement.Status.PENDING) {
+            ra.addFlashAttribute("error", "Only pending requests can be withdrawn.");
+            return "redirect:/student/endorsements";
+        }
+        skillEndorsementRepository.deleteById(id);
+        ra.addFlashAttribute("success", "Request withdrawn.");
+        return "redirect:/student/endorsements";
+    }
+
+    // ================================================================
+    //  AI PROJECT ADVISOR CHATBOT  (upgraded — streaming + mentor mode)
+    // ================================================================
+
+    @GetMapping("/ai/duplicate-checker")
+    public String aiChatbotPage(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        Student student = getCurrentStudent(userDetails);
+        model.addAttribute("student", student);
+        return "student/duplicate-checker";
+    }
+
+    /**
+     * STREAMING endpoint — returns Server-Sent Events so the frontend can
+     * display the AI response token-by-token (ChatGPT-style).
+     */
+    @PostMapping(value = "/ai/duplicate-check-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ResponseBody
+    public ResponseEntity<StreamingResponseBody> aiProjectStream(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody java.util.Map<String, String> body) {
+
+        String projectName  = body.getOrDefault("projectName", "").trim();
+        String projectTitle = body.getOrDefault("projectTitle", "").trim();
+        String projectIdea  = body.getOrDefault("projectIdea", "").trim();
+
+        if (projectName.isEmpty() && projectTitle.isEmpty() && projectIdea.isEmpty()) {
+            StreamingResponseBody errorBody = out -> {
+                String err = "data: {\"error\":\"Please provide at least your project name or idea.\"}\n\n";
+                out.write(err.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+            };
+            return ResponseEntity.badRequest()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(errorBody);
+        }
+
+        List<Project> allProjects = projectRepository.findAll();
+        String corpus = buildCorpus(allProjects);
+        String systemPrompt = buildMentorSystemPrompt();
+        String userMessage  = buildUserMessage(projectName, projectTitle, projectIdea, corpus);
+        String apiKey = System.getenv("ANTHROPIC_API_KEY");
+
+        StreamingResponseBody streamBody = out -> {
+            try {
+                if (apiKey == null || apiKey.isBlank()) {
+                    // Fallback: stream the rule-based response word-by-word
+                    String fallback = ruleBasedAdvisor(projectName, projectTitle, projectIdea, allProjects);
+                    streamTextWordByWord(fallback, out);
+                    out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    return;
+                }
+
+                // Build streaming request to Claude
+                String requestJson =
+                    "{\"model\":\"claude-sonnet-4-20250514\"," +
+                    "\"max_tokens\":2000," +
+                    "\"stream\":true," +
+                    "\"system\":" + toJsonString(systemPrompt) + "," +
+                    "\"messages\":[{\"role\":\"user\",\"content\":" + toJsonString(userMessage) + "}]}";
+
+                java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
+                java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://api.anthropic.com/v1/messages"))
+                    .header("Content-Type", "application/json")
+                    .header("x-api-key", apiKey)
+                    .header("anthropic-version", "2023-06-01")
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestJson))
+                    .build();
+
+                java.net.http.HttpResponse<java.io.InputStream> response =
+                    httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("data: ")) {
+                            String data = line.substring(6).trim();
+                            if (data.equals("[DONE]")) {
+                                out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+                                out.flush();
+                                break;
+                            }
+                            // Extract delta text from SSE JSON
+                            String delta = extractStreamDelta(data);
+                            if (delta != null && !delta.isEmpty()) {
+                                // Forward as SSE event
+                                String sseEvent = "data: " + toJsonString(delta) + "\n\n";
+                                out.write(sseEvent.getBytes(StandardCharsets.UTF_8));
+                                out.flush();
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                try {
+                    // Fallback to rule-based on any error
+                    String fallback = ruleBasedAdvisor(projectName, projectTitle, projectIdea, allProjects);
+                    streamTextWordByWord(fallback, out);
+                    out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                } catch (Exception ignored) {}
+            }
+        };
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.TEXT_EVENT_STREAM)
+            .body(streamBody);
+    }
+
+    /**
+     * Non-streaming fallback endpoint (kept for compatibility).
+     */
+    @PostMapping(value = "/ai/duplicate-check", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public ResponseEntity<?> aiProjectChat(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody java.util.Map<String, String> body) {
+
+        String projectName  = body.getOrDefault("projectName", "").trim();
+        String projectTitle = body.getOrDefault("projectTitle", "").trim();
+        String projectIdea  = body.getOrDefault("projectIdea", "").trim();
+
+        if (projectName.isEmpty() && projectTitle.isEmpty() && projectIdea.isEmpty()) {
+            return ResponseEntity.badRequest()
+                .body("{\"error\":\"Please provide at least your project name or idea.\"}");
+        }
+
+        List<Project> allProjects = projectRepository.findAll();
+        String corpus = buildCorpus(allProjects);
+        String apiKey = System.getenv("ANTHROPIC_API_KEY");
+
+        if (apiKey == null || apiKey.isBlank()) {
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"reply\":\"" + jsonEscape(ruleBasedAdvisor(projectName, projectTitle, projectIdea, allProjects)) + "\"}");
+        }
+
+        String systemPrompt = buildMentorSystemPrompt();
+        String userMessage  = buildUserMessage(projectName, projectTitle, projectIdea, corpus);
+
+        try {
+            String requestJson =
+                "{\"model\":\"claude-sonnet-4-20250514\"," +
+                "\"max_tokens\":2000," +
+                "\"system\":" + toJsonString(systemPrompt) + "," +
+                "\"messages\":[{\"role\":\"user\",\"content\":" + toJsonString(userMessage) + "}]}";
+
+            java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("https://api.anthropic.com/v1/messages"))
+                .header("Content-Type", "application/json")
+                .header("x-api-key", apiKey)
+                .header("anthropic-version", "2023-06-01")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestJson))
+                .build();
+
+            java.net.http.HttpResponse<String> response =
+                httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+            String aiReply = extractClaudeText(response.body());
+            if (aiReply == null || aiReply.isBlank()) aiReply = "I encountered an issue generating the analysis. Please try again.";
+
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"reply\":" + toJsonString(aiReply) + "}");
+
+        } catch (Exception ex) {
+            String fallback = ruleBasedAdvisor(projectName, projectTitle, projectIdea, allProjects);
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"reply\":" + toJsonString(fallback) + ",\"fallback\":true}");
+        }
+    }
+
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    private String buildCorpus(List<Project> projects) {
+        StringBuilder sb = new StringBuilder();
+        for (Project p : projects) {
+            if (p.getTitle() == null || p.getTitle().isBlank()) continue;
+            sb.append("PROJECT TITLE: ").append(p.getTitle()).append("\n");
+            if (p.getStudent() != null && p.getStudent().getName() != null)
+                sb.append("STUDENT: ").append(p.getStudent().getName()).append("\n");
+            if (p.getDescription() != null && !p.getDescription().isBlank())
+                sb.append("ABSTRACT: ").append(p.getDescription()).append("\n");
+            sb.append("---\n");
+        }
+        return sb.toString();
+    }
+
+    private String buildMentorSystemPrompt() {
+        return
+            "You are an experienced project supervisor and academic mentor at Daffodil International University (DIU). " +
+            "Your role is to help students refine their project ideas by comparing them against existing student projects in the database " +
+            "and providing thoughtful, mentor-quality feedback.\n\n" +
+
+            "CRITICAL COMPARISON RULES:\n" +
+            "- NEVER compare projects based on name alone. Two projects can share a domain keyword (e.g., 'Hospital') yet solve completely different problems.\n" +
+            "- Before calculating any similarity score, first deeply understand each project's: (1) core problem being solved, " +
+            "(2) target users, (3) key features, (4) workflow, (5) technology approach, (6) innovation level.\n" +
+            "- Only compare projects after this conceptual analysis. Reasoning MUST come before any percentage.\n" +
+            "- NEVER generate random percentages. Every number must be justified by actual feature/concept overlap.\n\n" +
+
+            "SIMILARITY SCALE:\n" +
+            "0–5%   → Only names are similar. Concepts are fundamentally different.\n" +
+            "5–20%  → Minor overlap in domain, but different problems or users.\n" +
+            "20–50% → Several shared features or same sub-domain.\n" +
+            "50–80% → Major feature and workflow overlap. Significant differentiation needed.\n" +
+            "80–100% → Essentially the same project — same problem, users, workflow, and features.\n\n" +
+
+            "DUPLICATE CLASSIFICATION:\n" +
+            "- Fully Duplicate: same problem + same users + same workflow + same major features.\n" +
+            "- Partially Duplicate: some overlapping concepts but meaningful unique aspects exist.\n" +
+            "- Not Duplicate: different goals, implementation, or problem being solved.\n" +
+            "Always explain WHY you classified it this way.\n\n" +
+
+            "RESPONSE FORMAT — use these exact section headings:\n\n" +
+            "## 🔍 Similarity Analysis\n" +
+            "List each similar project (if any) with: similarity %, duplicate status, and conceptual reasoning.\n" +
+            "State the Overall Similarity Score clearly.\n\n" +
+            "## ⚠️ Duplicate Status\n" +
+            "State: Fully Duplicate / Partially Duplicate / Not Duplicate — and explain why.\n\n" +
+            "## 📌 What Overlaps\n" +
+            "Explain specifically which features, users, or workflows match with existing projects.\n" +
+            "If unique: explain what makes it genuinely different.\n\n" +
+            "## 💡 Mentor Recommendations\n" +
+            "If duplicate or partially duplicate: give step-by-step improvement guidance (Step 1, Step 2 …).\n" +
+            "If unique: list the project's strengths — innovation level, practicality, academic and industry value.\n\n" +
+            "## 🚀 Build Guidance\n" +
+            "Suggested architecture, technology stack, development phases, and potential challenges.\n\n" +
+            "## 🏭 Industry Potential\n" +
+            "Rate as Low / Medium / High and explain the commercial or real-world viability.\n\n" +
+            "## 🎓 Academic Potential\n" +
+            "Rate as Low / Medium / High and explain the research novelty and academic merit.\n\n" +
+            "## 📝 Final Advice\n" +
+            "Practical next steps the student should take immediately.\n\n" +
+            "## ✨ Motivation\n" +
+            "A short, genuine, encouraging note — realistic praise, no fake flattery.\n\n" +
+            "TONE: Be human, thoughtful, professional, and encouraging. Tailor every response to the student's specific idea. " +
+            "Never give generic advice. Never be robotic. Act like a mentor who genuinely wants the student to succeed.";
+    }
+
+    private String buildUserMessage(String name, String title, String idea, String corpus) {
+        return
+            "Here are the existing projects currently in the TrackIO system:\n\n" +
+            corpus +
+            "\nThe student's proposed project:\n" +
+            "Project Name: " + (name.isEmpty() ? "(not provided)" : name) + "\n" +
+            "Project Title: " + (title.isEmpty() ? "(same as name)" : title) + "\n" +
+            "Project Idea / Description: " + (idea.isEmpty() ? "(not provided)" : idea) + "\n\n" +
+            "Please perform a deep conceptual analysis — understand the proposed project's problem, users, features, and workflow FIRST, " +
+            "then compare with each existing project on those dimensions. Give your full mentor advisory report following the required format.";
+    }
+
+    /** Simulates streaming by writing word-by-word (used when API key absent or on fallback). */
+    private void streamTextWordByWord(String text, OutputStream out) throws Exception {
+        String[] words = text.split("(?<=\\s)|(?=\\s)");
+        for (String word : words) {
+            String sseEvent = "data: " + toJsonString(word) + "\n\n";
+            out.write(sseEvent.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+            if (!word.isBlank()) Thread.sleep(18); // ~55 words/sec
+        }
+    }
+
+    /** Extracts the delta text from a streaming SSE JSON chunk from Claude. */
+    private String extractStreamDelta(String json) {
+        try {
+            // Look for "delta":{"type":"text_delta","text":"..."}
+            int deltaIdx = json.indexOf("\"text_delta\"");
+            if (deltaIdx < 0) return null;
+            int textIdx = json.indexOf("\"text\"", deltaIdx);
+            if (textIdx < 0) return null;
+            int colon = json.indexOf(':', textIdx);
+            if (colon < 0) return null;
+            int quote = json.indexOf('"', colon + 1);
+            if (quote < 0) return null;
+            StringBuilder sb = new StringBuilder();
+            int i = quote + 1;
+            while (i < json.length()) {
+                char c = json.charAt(i);
+                if (c == '\\' && i + 1 < json.length()) {
+                    char next = json.charAt(i + 1);
+                    if (next == 'n') { sb.append('\n'); i += 2; }
+                    else if (next == 't') { sb.append('\t'); i += 2; }
+                    else if (next == '"') { sb.append('"'); i += 2; }
+                    else if (next == '\\') { sb.append('\\'); i += 2; }
+                    else { sb.append(next); i += 2; }
+                } else if (c == '"') {
+                    break;
+                } else {
+                    sb.append(c);
+                    i++;
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Extracts the text from Claude's JSON response */
+    private String extractClaudeText(String json) {
+        try {
+            int contentIdx = json.indexOf("\"content\"");
+            if (contentIdx < 0) return null;
+            int textIdx = json.indexOf("\"text\"", contentIdx);
+            if (textIdx < 0) return null;
+            int colon = json.indexOf(':', textIdx);
+            if (colon < 0) return null;
+            int quote = json.indexOf('"', colon + 1);
+            if (quote < 0) return null;
+            StringBuilder sb = new StringBuilder();
+            int i = quote + 1;
+            while (i < json.length()) {
+                char c = json.charAt(i);
+                if (c == '\\' && i + 1 < json.length()) {
+                    char next = json.charAt(i + 1);
+                    if (next == 'n') { sb.append('\n'); i += 2; }
+                    else if (next == 't') { sb.append('\t'); i += 2; }
+                    else if (next == '"') { sb.append('"'); i += 2; }
+                    else if (next == '\\') { sb.append('\\'); i += 2; }
+                    else { sb.append(next); i += 2; }
+                } else if (c == '"') {
+                    break;
+                } else {
+                    sb.append(c);
+                    i++;
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Rule-based advisor — produces a structured mentor-format report when the Claude API
+     * is unavailable. Performs CONCEPTUAL comparison (problem + users + features),
+     * not naive keyword matching.
+     */
+    private String ruleBasedAdvisor(String name, String title, String idea,
+                                     List<Project> allProjects) {
+        String combined = (name + " " + title + " " + idea).toLowerCase();
+
+        // ── Detect the primary domain of the submitted project ───────────────
+        String[][] domainGroups = {
+            {"hospital", "hms", "patient", "doctor", "clinic", "medical", "health", "pharmacy", "telemedicine"},
+            {"inventory", "stock", "warehouse", "supply", "procurement", "storage", "goods"},
+            {"school", "university", "course", "grade", "attendance", "exam", "result", "academia", "obe"},
+            {"ecommerce", "shop", "cart", "order", "payment", "buy", "sell", "marketplace", "retail"},
+            {"library", "book", "borrow", "catalog", "isbn", "lending"},
+            {"restaurant", "food", "menu", "delivery", "recipe", "kitchen", "canteen"},
+            {"bank", "finance", "loan", "transaction", "budget", "fintech", "wallet", "expense", "spending", "income", "saving", "money", "cost", "financial"},
+            {"transport", "vehicle", "route", "bus", "ticket", "gps", "ride", "logistics"},
+            {"hotel", "room", "booking", "reservation", "guest", "checkin"},
+            {"hr", "employee", "payroll", "salary", "leave", "recruitment", "workforce"},
+            {"disaster", "flood", "rescue", "relief", "emergency", "crisis", "volunteer"},
+            {"agriculture", "farm", "crop", "soil", "harvest", "irrigation", "weather"},
+            {"crime", "police", "security", "surveillance", "incident", "forensic"},
+            {"chat", "messaging", "realtime", "socket", "communication", "notification"},
+            {"portfolio", "skill endorsement", "achievement log", "internship log", "certification", "cv generator", "resume builder", "obe", "capstone portfolio"},
+        };
+
+        String detectedDomain = "general";
+        int topDomainScore = 0;
+        for (String[] group : domainGroups) {
+            int score = 0;
+            for (String kw : group) { if (combined.contains(kw)) score += 2; }
+            if (score > topDomainScore) { topDomainScore = score; detectedDomain = group[0]; }
+        }
+
+        // ── Detect submitted project's domain index ──────────────────────────
+        int submittedDomainIdx = -1;
+        int submittedDomainBestScore = 0;
+        for (int d = 0; d < domainGroups.length; d++) {
+            int score = 0;
+            for (String kw : domainGroups[d]) { if (combined.contains(kw)) score++; }
+            if (score > submittedDomainBestScore) {
+                submittedDomainBestScore = score;
+                submittedDomainIdx = d;
+            }
+        }
+
+        // ── Conceptual similarity scoring against each existing project ───────
+        //
+        // The ONLY way to score high is for the submitted project and an existing
+        // project to share the SAME specific domain group (same set of domain
+        // keywords). Generic words like "tracker", "dashboard", "report", "user"
+        // are intentionally NOT in any domain group and do NOT contribute to the
+        // domain score. This prevents an "expense tracker" from matching a
+        // "Flood Rescue System" just because both have a dashboard.
+        //
+        // Scoring breakdown:
+        //   Domain match (same specific domain group):  up to 55 pts
+        //   Domain-specific feature overlap:            up to 30 pts
+        //   Same core problem (problem keywords):       up to 15 pts
+        //   Total possible: 100 pts → final %
+        //
+        // If the submitted project has NO recognised domain (general/unknown),
+        // scores are capped at 20 to avoid false positives.
+
+        List<String[]> matches = new ArrayList<>();
+        int highestScore = 0;
+
+        for (Project p : allProjects) {
+            if (p.getTitle() == null || p.getTitle().isBlank()) continue;
+            String pTitle = p.getTitle().toLowerCase();
+            String pDesc  = (p.getDescription() != null) ? p.getDescription().toLowerCase() : "";
+            String pFull  = pTitle + " " + pDesc;
+
+            // ── 1. Domain match: both projects must share the SAME domain group ──
+            int domainScore = 0;
+            int matchedDomainIdx = -1;
+            int existingDomainBest = 0;
+            for (int d = 0; d < domainGroups.length; d++) {
+                int score = 0;
+                for (String kw : domainGroups[d]) { if (pFull.contains(kw)) score++; }
+                if (score > existingDomainBest) { existingDomainBest = score; matchedDomainIdx = d; }
+            }
+
+            // Only award domain points if BOTH projects belong to the exact same group
+            if (submittedDomainIdx >= 0 && submittedDomainIdx == matchedDomainIdx) {
+                // Score proportional to how strongly each project fits that group
+                int overlapStrength = Math.min(submittedDomainBestScore, existingDomainBest);
+                domainScore = Math.min(55, overlapStrength * 12);
+            }
+            // If domains don't match → domainScore stays 0. No cross-domain false positives.
+
+            // ── 2. Domain-specific feature overlap ───────────────────────────────
+            // Each domain has its own feature vocabulary. We only compare features
+            // that are MEANINGFUL within the matched domain — not generic words.
+            int featureScore = 0;
+            if (domainScore > 0 && submittedDomainIdx >= 0) {
+                String[][] domainFeatures = {
+                    // hospital
+                    {"patient registration","appointment","bed","ward","doctor","prescription","billing","opd","ipd","pharmacy","diagnosis","nurse"},
+                    // inventory
+                    {"stock","reorder","warehouse","procurement","purchase order","supplier","barcode","sku","goods receipt","stock level"},
+                    // school/university
+                    {"course enrollment","grade","attendance","exam schedule","result","cgpa","semester","curriculum","obe","co","po"},
+                    // ecommerce
+                    {"cart","checkout","product listing","order tracking","payment gateway","wishlist","vendor","coupon","shipping","review"},
+                    // library
+                    {"book borrowing","return date","fine","catalog","isbn","member card","overdue","book reservation","shelf"},
+                    // restaurant/food
+                    {"menu item","food order","table reservation","delivery","recipe","kitchen","chef","waiter","bill","pos"},
+                    // bank/finance
+                    {"account balance","transaction","loan application","interest rate","transfer","deposit","withdrawal","statement","ledger"},
+                    // transport
+                    {"route","bus schedule","seat booking","gps tracking","driver","vehicle","fare","trip","passenger"},
+                    // hotel
+                    {"room booking","check-in","check-out","guest","housekeeping","suite","occupancy","front desk"},
+                    // hr
+                    {"employee record","payroll","salary slip","leave request","attendance","appraisal","recruitment","onboarding","department"},
+                    // disaster/rescue
+                    {"flood zone","rescue team","relief goods","sos","volunteer dispatch","shelter","evacuation","affected person"},
+                    // agriculture
+                    {"crop","soil","harvest","irrigation","weather forecast","pest","fertilizer","field","yield"},
+                    // crime/security
+                    {"incident report","patrol","surveillance","suspect","case","forensic","officer","crime map"},
+                    // chat/messaging
+                    {"message thread","online status","group chat","push notification","socket","read receipt","media share"},
+                    // portfolio/tracker
+                    {"skill","achievement","internship","certification","cv","portfolio","endorsement","outcome","capstone"}
+                };
+                String[] relevantFeatures = (submittedDomainIdx < domainFeatures.length)
+                    ? domainFeatures[submittedDomainIdx] : new String[0];
+
+                int featMatches = 0, featPresent = 0;
+                for (String feat : relevantFeatures) {
+                    boolean inS = combined.contains(feat);
+                    boolean inE = pFull.contains(feat);
+                    if (inS || inE) featPresent++;
+                    if (inS && inE) featMatches++;
+                }
+                featureScore = (featPresent > 0) ? Math.min(30, (featMatches * 30) / featPresent) : 0;
+            }
+
+            // ── 3. Core problem keywords (same problem being solved) ─────────────
+            // Only counts when domain already matched; stops generic overlap inflating score
+            int problemScore = 0;
+            if (domainScore > 0) {
+                // Extract meaningful content words (4+ chars) from the submitted idea
+                // and check how many appear in the existing project description
+                String[] submittedWords = combined.split("\\s+");
+                int problemMatches = 0, problemTotal = 0;
+                String[] stopWords = {"this","that","will","with","have","from","they",
+                                      "been","were","their","system","project","management",
+                                      "track","daily","check","using","make","build","create",
+                                      "based","user","users","data","able","also","both",
+                                      "each","such","more","into","than","some","about"};
+                for (String w : submittedWords) {
+                    if (w.length() < 5) continue;
+                    boolean isStop = false;
+                    for (String s : stopWords) { if (w.equals(s)) { isStop = true; break; } }
+                    if (isStop) continue;
+                    problemTotal++;
+                    if (pFull.contains(w)) problemMatches++;
+                }
+                if (problemTotal > 0)
+                    problemScore = Math.min(15, (problemMatches * 15) / problemTotal);
+            }
+
+            // ── Final score ───────────────────────────────────────────────────────
+            int finalScore = domainScore + featureScore + problemScore;
+            // No domain match at all → hard cap at 8% (names may share generic words)
+            if (domainScore == 0) finalScore = Math.min(finalScore, 8);
+            finalScore = Math.min(finalScore, 100);
+
+            // Only surface matches >= 10% to avoid noise
+            if (finalScore >= 10) {
+                String studentName = (p.getStudent() != null && p.getStudent().getName() != null)
+                    ? p.getStudent().getName() : "Unknown Student";
+                String status = finalScore >= 75 ? "Fully Duplicate"
+                              : finalScore >= 40 ? "Partially Duplicate"
+                              : "Minor Overlap";
+                String reason = buildConceptualReason(combined, pFull, domainScore, featureScore, problemScore);
+                matches.add(new String[]{p.getTitle(), studentName, String.valueOf(finalScore), status, reason});
+                if (finalScore > highestScore) highestScore = finalScore;
+            }
+        }
+        matches.sort((a, b) -> Integer.parseInt(b[2]) - Integer.parseInt(a[2]));
+
+        // Determine overall duplicate status
+        String overallStatus;
+        if (highestScore >= 75)      overallStatus = "Fully Duplicate";
+        else if (highestScore >= 40) overallStatus = "Partially Duplicate";
+        else                          overallStatus = "Not Duplicate";
+
+        String baseName  = name.isEmpty() ? (title.isEmpty() ? "Your Project" : capitalize(title)) : capitalize(name);
+        String domainCap = capitalize(detectedDomain);
+
+        StringBuilder sb = new StringBuilder();
+
+        // ── Section 1: Similarity Analysis ──────────────────────────────────
+        sb.append("## 🔍 Similarity Analysis\n\n");
+        if (matches.isEmpty()) {
+            sb.append("After a conceptual review of all projects in the TrackIO database — examining the problem each one solves, its target users, core features, and workflow — **no meaningful matches** were found for your proposed project.\n\n");
+            sb.append("**Overall Similarity Score: 0%**\n\n");
+        } else {
+            sb.append("Here is how your project compares conceptually with existing submissions:\n\n");
+            for (String[] m : matches) {
+                sb.append("- **").append(m[0]).append("** (").append(m[1]).append(")\n");
+                sb.append("  Similarity: **").append(m[2]).append("%** — ").append(m[3]).append("\n");
+                sb.append("  Status: *").append(m[3 < m.length ? 3 : 3]).append("*\n\n");
+            }
+            sb.append("**Overall Similarity Score: ").append(highestScore).append("%**\n\n");
+        }
+
+        // ── Section 2: Duplicate Status ─────────────────────────────────────
+        sb.append("## ⚠️ Duplicate Status\n\n");
+        if (overallStatus.equals("Not Duplicate")) {
+            sb.append("**Not Duplicate** — Your project addresses a problem, user group, or workflow that is not already represented in the existing database. ");
+            sb.append("The conceptual analysis did not find any project that solves the same core problem in the same way.\n\n");
+        } else if (overallStatus.equals("Partially Duplicate")) {
+            sb.append("**Partially Duplicate** — Your project shares some conceptual ground with one or more existing submissions, particularly in the *").append(detectedDomain).append("* domain. ");
+            sb.append("However, there are meaningful differences in scope or approach. With focused differentiation, this project can stand on its own.\n\n");
+        } else {
+            sb.append("**Fully Duplicate** — The analysis found substantial overlap with existing projects across problem definition, target users, core features, and workflow. ");
+            sb.append("Significant re-scoping is needed before this project can be considered an independent academic contribution.\n\n");
+        }
+
+        // ── Section 3: What Overlaps ─────────────────────────────────────────
+        sb.append("## 📌 What Overlaps\n\n");
+        if (matches.isEmpty()) {
+            sb.append("No overlapping features, user groups, or workflows were detected. Your project's core concept appears genuinely distinct from everything currently in the TrackIO database — this is a real strength to build on.\n\n");
+        } else if (highestScore < 40) {
+            sb.append("The overlap is **surface-level** — primarily in the broader *").append(detectedDomain).append("* domain keyword. ");
+            sb.append("However, when comparing the actual problems being solved and the features described, your project diverges meaningfully. ");
+            sb.append("The risk of being flagged as derivative is low, but it is worth clearly articulating what makes your specific implementation different in your project proposal.\n\n");
+        } else if (highestScore < 75) {
+            sb.append("The overlap exists at the **domain and partial-feature level** within the *").append(detectedDomain).append("* space. ");
+            sb.append("The matched projects likely share modules such as user management, basic CRUD operations, and reporting. ");
+            sb.append("Your differentiation must come from the depth of your innovation — a unique AI feature, a different target user segment, or a workflow the existing projects do not address.\n\n");
+        } else {
+            sb.append("The overlap is **substantial** — the matched project(s) appear to address the same core problem, serve similar users, and implement comparable workflows. ");
+            sb.append("Submitting this idea as-is would likely be viewed as a derivative work. A fundamental pivot in scope or technical approach is strongly recommended.\n\n");
+        }
+
+        // ── Section 4: Mentor Recommendations ───────────────────────────────
+        sb.append("## 💡 Mentor Recommendations\n\n");
+        if (overallStatus.equals("Not Duplicate")) {
+            sb.append("Your idea is genuinely original — so instead of differentiation advice, here are your project's **strengths** and how to leverage them:\n\n");
+            sb.append("- **Innovation Level**: Your project explores a problem space not currently covered in the student project database. This gives you a natural academic advantage.\n");
+            sb.append("- **Practicality**: Focus early on validating your idea with real potential users — even 3–5 informal interviews will sharpen your feature priorities dramatically.\n");
+            sb.append("- **Academic Value**: Document your design decisions thoroughly. An architectural decision record (ADR) transforms a good project into an excellent one.\n");
+            sb.append("- **Industry Value**: Consider whether your project could operate as a real product after graduation. If yes, document that potential in your introduction — it impresses evaluators.\n\n");
+        } else if (overallStatus.equals("Partially Duplicate")) {
+            sb.append("Your project has a solid foundation but needs targeted differentiation. Follow these steps:\n\n");
+            sb.append("**Step 1 — Identify your unique angle**: What does your project do that the matched projects do not? Write one sentence: *\"Unlike [matched project], mine specifically solves [X] for [Y users] by doing [Z].\"* If you struggle to complete this, that is your first task.\n\n");
+            sb.append("**Step 2 — Add a missing intelligence layer**: Review the matched projects' abstracts. Find the most technically sophisticated feature they lack — predictive analytics, NLP-based search, ML recommendations, or real-time IoT integration — and make that your centrepiece.\n\n");
+            sb.append("**Step 3 — Narrow your target user**: Instead of a general audience, identify a very specific user group (e.g., rural small clinics, freelancers, underserved communities). Tailoring UX and features to a niche instantly creates separation.\n\n");
+            sb.append("**Step 4 — Solve a second-order problem**: The matched projects likely solve the primary operational workflow. Go one level deeper — solve what happens *after* that workflow (e.g., if they manage appointments, you predict no-show risk).\n\n");
+            sb.append("**Step 5 — Document the comparison explicitly**: In your project proposal, include a comparison table showing how your project advances beyond the existing work. Evaluators reward students who acknowledge prior work and articulate clear advancement.\n\n");
+        } else {
+            sb.append("High overlap means you need to **fundamentally re-scope** before proceeding. Here is a concrete plan:\n\n");
+            sb.append("**Step 1 — Change the stakeholder perspective**: The matched projects likely solve the *operator or admin* view. Rebuild entirely from the *end-user or beneficiary* perspective. This changes every feature, every screen, and every priority.\n\n");
+            sb.append("**Step 2 — Make AI/ML your core, not a feature**: Do not add intelligence as an afterthought. Choose one prediction or classification problem at the heart of your domain and build the entire project around solving it well.\n\n");
+            sb.append("**Step 3 — Cross-domain fusion**: Combine the *").append(detectedDomain).append("* domain with a completely different one — IoT, blockchain, sentiment analysis, geospatial mapping, or wearable health data. Cross-domain projects are inherently unique.\n\n");
+            sb.append("**Step 4 — Target a different geography or constraint**: Design explicitly for low-bandwidth environments, rural infrastructure, or compliance with a specific regulatory framework (e.g., Bangladesh National Health Policy, GDPR). This forces design decisions that existing projects never made.\n\n");
+            sb.append("**Step 5 — Write your novelty statement first**: Before writing a single line of code, write this sentence and make it technically specific: *\"Unlike all existing systems, this project uniquely...\"* That sentence IS your project scope.\n\n");
+        }
+
+        // ── Section 5: Build Guidance ────────────────────────────────────────
+        sb.append("## 🚀 Build Guidance\n\n");
+        sb.append("**Suggested Architecture**: Layered MVC — Controller → Service → Repository — with a clearly separated frontend (Thymeleaf / React) and a REST API backend. This pattern is evaluator-friendly and professionally credible.\n\n");
+        sb.append("**Recommended Stack**:\n");
+        if (detectedDomain.equals("ecommerce") || detectedDomain.equals("inventory") || detectedDomain.equals("bank")) {
+            sb.append("- Backend: Spring Boot + Spring Security (JWT) + MySQL\n");
+            sb.append("- Frontend: Thymeleaf or React + Chart.js for analytics\n");
+            sb.append("- Payments: bKash / SSLCommerz sandbox integration\n");
+            sb.append("- Notifications: JavaMailSender + Twilio SMS\n\n");
+        } else if (detectedDomain.equals("hospital") || detectedDomain.equals("hr")) {
+            sb.append("- Backend: Spring Boot + Spring Security + MySQL\n");
+            sb.append("- Frontend: Thymeleaf with responsive Bootstrap layout\n");
+            sb.append("- Reports: Apache POI (Excel) or iText (PDF)\n");
+            sb.append("- Real-time: WebSocket / STOMP for live status updates\n\n");
+        } else {
+            sb.append("- Backend: Spring Boot + Spring Security + MySQL or PostgreSQL\n");
+            sb.append("- Frontend: Thymeleaf or React (depending on complexity)\n");
+            sb.append("- DevOps: Docker + docker-compose for one-command deployment\n");
+            sb.append("- Testing: JUnit 5 + Mockito for service-layer unit tests\n\n");
+        }
+        sb.append("**Development Phases**:\n");
+        sb.append("1. Requirements & UI wireframes (1–2 weeks)\n");
+        sb.append("2. Database schema design + core entity layer (1 week)\n");
+        sb.append("3. Authentication + basic CRUD (2 weeks)\n");
+        sb.append("4. Core business logic + your differentiating feature (3–4 weeks)\n");
+        sb.append("5. Dashboard, analytics, reporting (1–2 weeks)\n");
+        sb.append("6. Testing, polish, Docker, documentation (1–2 weeks)\n\n");
+        sb.append("**Potential Challenges**: User role design complexity, real-time synchronisation, external API rate limits, and test data generation. Plan for these early.\n\n");
+
+        // ── Section 6: Industry Potential ───────────────────────────────────
+        sb.append("## 🏭 Industry Potential\n\n");
+        if (overallStatus.equals("Not Duplicate")) {
+            sb.append("**Rating: Medium–High**\n\n");
+            sb.append("A genuinely original idea in the *").append(detectedDomain).append("* space carries real commercial potential, especially in the Bangladeshi market where many domain-specific digital solutions remain underdeveloped. With proper UX polish and a working MVP, this could realistically become a startup product or an internal tool for organisations in this sector.\n\n");
+        } else if (overallStatus.equals("Partially Duplicate")) {
+            sb.append("**Rating: Medium**\n\n");
+            sb.append("The *").append(detectedDomain).append("* domain has commercial traction, but competition exists. Your industry potential increases significantly if you implement the differentiation steps above — particularly the AI/ML layer and the niche user focus. A narrowly targeted tool that solves one problem excellently beats a broad tool that covers everything poorly.\n\n");
+        } else {
+            sb.append("**Rating: Low (as currently scoped)**\n\n");
+            sb.append("In its current form, this project would compete directly with existing academic projects and, more importantly, with mature commercial solutions. Industry potential rises sharply if you re-scope around the unique angle recommended above. After re-scoping, re-evaluate — the potential could shift to Medium or High.\n\n");
+        }
+
+        // ── Section 7: Academic Potential ───────────────────────────────────
+        sb.append("## 🎓 Academic Potential\n\n");
+        if (overallStatus.equals("Not Duplicate")) {
+            sb.append("**Rating: High**\n\n");
+            sb.append("Original problem statements are rare in student project databases. Your proposal has strong academic merit because it demonstrates independent problem identification. Strengthen the academic case by citing 2–3 related works in your introduction and clearly positioning your contribution relative to them.\n\n");
+        } else if (overallStatus.equals("Partially Duplicate")) {
+            sb.append("**Rating: Medium**\n\n");
+            sb.append("There is a credible academic contribution here, but it needs to be explicitly articulated. Follow the differentiation steps, then write a clear 'Contribution of This Work' paragraph in your project report. Evaluators do not always connect the dots themselves — you need to state your novelty explicitly.\n\n");
+        } else {
+            sb.append("**Rating: Low (as currently scoped)**\n\n");
+            sb.append("Without meaningful differentiation, this project risks being evaluated as a reimplementation of existing work rather than an independent academic contribution. The good news: the fixes are actionable. Apply the re-scoping steps, and the academic potential can realistically reach Medium or High.\n\n");
+        }
+
+        // ── Section 8: Final Advice ──────────────────────────────────────────
+        sb.append("## 📝 Final Advice\n\n");
+        sb.append("Here are your most important next steps:\n\n");
+        if (overallStatus.equals("Not Duplicate")) {
+            sb.append("1. **Write your problem statement today** — in 3 sentences: the problem, who it affects, and why existing solutions fall short.\n");
+            sb.append("2. **Sketch your data model** — identify your 4–6 core entities. A clean schema is the foundation of a clean project.\n");
+            sb.append("3. **Choose your differentiating feature** — the one thing that will make evaluators remember your project specifically.\n");
+            sb.append("4. **Start a project log** — document every major decision. This becomes your viva preparation automatically.\n");
+        } else if (overallStatus.equals("Partially Duplicate")) {
+            sb.append("1. **Complete the novelty sentence** — *\"Unlike existing projects, mine uniquely solves [X] for [Y] by doing [Z].\"* Pin it to your monitor.\n");
+            sb.append("2. **Review the matched project abstracts** carefully — find the exact features they lack and make one of those your core deliverable.\n");
+            sb.append("3. **Narrow your scope, deepen your feature** — it is better to do one advanced thing excellently than five basic things adequately.\n");
+            sb.append("4. **Submit your revised proposal** to your supervisor within the week — iteration time is your most valuable resource.\n");
+        } else {
+            sb.append("1. **Do not start coding yet** — invest this week in re-scoping. Time spent now saves weeks of wasted development.\n");
+            sb.append("2. **Talk to your supervisor** — share the overlap analysis and ask for their guidance on a feasible pivot direction.\n");
+            sb.append("3. **Pick one of the re-scoping strategies above** and write a new 1-page project summary.\n");
+            sb.append("4. **Run this checker again** on your revised idea before committing to it.\n");
+        }
+        sb.append("\n");
+
+        // ── Section 9: Motivation ─────────────────────────────────────────────
+        sb.append("## ✨ Motivation\n\n");
+        if (overallStatus.equals("Not Duplicate")) {
+            sb.append("You are off to a genuinely strong start. The fact that your idea does not appear in the existing project database means you identified a problem that others have not yet addressed — and that is the hardest part of any project. The technical execution is something you can learn and iterate on. The original thinking? That is already there. Build with confidence.\n");
+        } else if (overallStatus.equals("Partially Duplicate")) {
+            sb.append("This idea has real potential, and the overlap you have is not a setback — it is a map. It shows you where the existing work stops and where your contribution needs to begin. Many strong academic projects start exactly here: in a familiar domain, with a genuinely new angle. The suggestions above are not obstacles; they are the steps that will transform a good idea into a memorable one.\n");
+        } else {
+            sb.append("The similarity score is high, but that does not mean you have failed — it means you have identified a well-understood problem domain, which is actually a strength. The work now is to find the angle that makes your version uniquely yours. Students who go through this re-scoping process often end up with stronger, more focused projects than those who never had to challenge their initial assumption. You are closer than you think.\n");
+        }
+
+        return sb.toString();
+    }
+
+    /** Builds a human-readable conceptual overlap explanation. */
+    private String buildConceptualReason(String query, String target,
+                                          int domainScore, int featureScore, int problemScore) {
+        List<String> reasons = new ArrayList<>();
+        if (domainScore > 0)   reasons.add("same problem domain (" + domainScore + "/55 pts)");
+        if (featureScore > 0)  reasons.add("shared domain-specific features (" + featureScore + "/30 pts)");
+        if (problemScore > 0)  reasons.add("overlapping problem vocabulary (" + problemScore + "/15 pts)");
+        if (reasons.isEmpty()) return "Surface-level keyword overlap only — no conceptual match.";
+        return "Overlap in: " + String.join(", ", reasons) + ".";
+    }
+
+    private String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    private String toJsonString(String s) {
+        if (s == null) return "\"\"";
+        return "\"" + s.replace("\\", "\\\\")
+                       .replace("\"", "\\\"")
+                       .replace("\n", "\\n")
+                       .replace("\r", "\\r")
+                       .replace("\t", "\\t") + "\"";
+    }
+
+    private String jsonEscape(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
+
+}

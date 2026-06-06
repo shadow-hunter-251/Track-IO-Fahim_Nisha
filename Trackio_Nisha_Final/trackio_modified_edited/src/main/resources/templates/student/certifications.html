@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Certifications</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('certs')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>My Certifications</h1><p>Professional &amp; Academic Certificates</p></div>
+      <div class="topbar-actions"><a th:href="@{/student/certifications/new}" class="btn btn-primary">+ Add Certification</a></div>
+    </div>
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div class="card">
+        <div th:if="${#lists.isEmpty(certs)}" class="empty-state">
+          <div class="empty-icon">✦</div><h3>No certifications yet</h3>
+          <p>Add your professional certifications and courses.</p>
+          <a th:href="@{/student/certifications/new}" class="btn btn-primary">+ Add Certification</a>
+        </div>
+        <div th:unless="${#lists.isEmpty(certs)}" class="table-container">
+          <table>
+            <thead><tr><th>Title</th><th>Organization</th><th>Issue Date</th><th>Expiry</th><th>Verified</th><th>Link</th><th>Actions</th></tr></thead>
+            <tbody>
+            <tr th:each="c : ${certs}">
+              <td class="td-name" th:text="${c.title}">Title</td>
+              <td th:text="${c.issuingOrganization}">Org</td>
+              <td th:text="${c.issueDate}">Date</td>
+              <td th:text="${c.expiryDate != null ? c.expiryDate : 'No Expiry'}">Expiry</td>
+              <td>
+                <span th:if="${c.verified}" class="badge badge-verified">✓ Verified</span>
+                <span th:unless="${c.verified}" class="badge badge-unverified">Pending</span>
+              </td>
+              <td><a th:if="${c.certificateLink != null}" th:href="${c.certificateLink}" target="_blank" style="color:var(--blush);font-size:0.8rem">View ↗</a><span th:unless="${c.certificateLink != null}">—</span></td>
+              <td><div class="actions">
+                <a th:href="@{/student/certifications/edit/{id}(id=${c.id})}" class="btn btn-secondary btn-sm">Edit</a>
+                <form th:action="@{/student/certifications/delete/{id}(id=${c.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete?')">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <button class="btn btn-danger btn-sm">Delete</button>
+                </form>
+              </div></td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

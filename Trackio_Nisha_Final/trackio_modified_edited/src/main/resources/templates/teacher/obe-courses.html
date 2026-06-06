@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>OBE Courses — Trackio-DIU</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('obe-courses')}"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>OBE — Courses &amp; Outcomes</h1>
+        <p>Define courses and the Course Outcomes (COs) students attain through them</p>
+      </div>
+      <div class="topbar-actions">
+        <a th:href="@{/teacher/obe/courses/new}" class="btn btn-primary">+ New Course</a>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div th:if="${error}" class="alert alert-danger">✗ &nbsp;<span th:text="${error}"></span></div>
+
+      <!-- Intro context -->
+      <div class="card" style="background:rgba(187,134,252,0.04);margin-bottom:20px">
+        <div style="padding:8px 4px">
+          <h4 style="font-size:0.92rem;color:var(--diu-blue);margin-bottom:8px">
+            📘 What is Outcome-Based Education (OBE)?
+          </h4>
+          <p style="font-size:0.86rem;line-height:1.65;color:var(--text-secondary)">
+            OBE is the framework used by accreditation bodies (BAETE / NBA / ABET) where
+            every graduate must demonstrably attain 12 standardized <strong>Program Outcomes (POs)</strong>.
+            POs are achieved through <strong>Course Outcomes (COs)</strong> — what students learn in each course.
+            Students provide <strong>evidence</strong> (projects, assignments, internships) that they've attained each CO.
+            <br/><br/>
+            This system computes PO attainment automatically from the evidence tagged by students,
+            giving you a real-time accreditation-ready report.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Courses</span>
+          <span style="font-size:0.78rem;color:var(--diu-gray)" th:text="${#lists.size(rows)} + ' total'">0</span>
+        </div>
+
+        <div th:if="${#lists.isEmpty(rows)}" class="empty-state">
+          <div class="empty-icon">📚</div>
+          <h3>No courses yet</h3>
+          <p>Create your first course, then define its outcomes (COs) and map them to POs.</p>
+          <a th:href="@{/teacher/obe/courses/new}" class="btn btn-primary">+ Create First Course</a>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(rows)}" class="table-container">
+          <table>
+            <thead>
+            <tr>
+              <th>Code</th>
+              <th>Course Name</th>
+              <th>Department</th>
+              <th>Credits</th>
+              <th>Instructor</th>
+              <th style="text-align:center">COs Defined</th>
+              <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${rows}">
+              <td class="td-name" th:text="${r.course.courseCode}">CSE-3711</td>
+              <td th:text="${r.course.courseName}">Course</td>
+              <td th:text="${r.course.department != null ? r.course.department : '—'}">Dept</td>
+              <td th:text="${r.course.credits != null ? r.course.credits : '—'}">3</td>
+              <td th:text="${r.course.instructor != null ? r.course.instructor : '—'}">Faculty</td>
+              <td style="text-align:center">
+                <span class="badge"
+                      th:classappend="${r.coCount > 0} ? 'badge-verified' : 'badge-unverified'"
+                      th:text="${r.coCount}">0</span>
+              </td>
+              <td>
+                <div class="actions">
+                  <a th:href="@{/teacher/obe/courses/{id}/outcomes(id=${r.course.id})}"
+                     class="btn btn-primary btn-sm">Manage COs</a>
+                  <form th:action="@{/teacher/obe/courses/{id}/delete(id=${r.course.id})}"
+                        method="post" style="display:inline"
+                        onsubmit="return confirm('Delete this course and all its outcomes?')">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

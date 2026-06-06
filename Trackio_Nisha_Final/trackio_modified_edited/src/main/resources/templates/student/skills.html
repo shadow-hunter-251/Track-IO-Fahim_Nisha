@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Skills</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/student-sidebar :: sidebar('skills')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1>My Skills</h1><p>Skills you have developed — teacher-verified badges shown</p></div>
+      <div class="topbar-actions"><a th:href="@{/student/skills/new}" class="btn btn-primary">+ Add Skill</a></div>
+    </div>
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div th:if="${error}" class="alert alert-danger">✗ &nbsp;<span th:text="${error}"></span></div>
+      <div class="card">
+        <div th:if="${#lists.isEmpty(skills)}" class="empty-state">
+          <div class="empty-icon">◆</div>
+          <h3>No skills yet</h3>
+          <p>Add skills you've developed through projects and courses.</p>
+          <a th:href="@{/student/skills/new}" class="btn btn-primary">+ Add Skill</a>
+        </div>
+        <div th:unless="${#lists.isEmpty(skills)}" class="table-container">
+          <table>
+            <thead><tr><th>Skill Name</th><th>Category</th><th>Level</th><th>Linked Course</th><th>Linked Project</th><th>Verified</th><th>Actions</th></tr></thead>
+            <tbody>
+            <tr th:each="s : ${skills}">
+              <td class="td-name" th:text="${s.skillName}">Name</td>
+              <td><span class="badge" th:classappend="${s.category != null and s.category.toLowerCase().contains('soft')} ? 'badge-soft' : 'badge-technical'" th:text="${s.category != null ? s.category : '—'}">Cat</span></td>
+              <td><span class="badge"
+                        th:classappend="${s.level != null and s.level.name() == 'BEGINNER'} ? 'badge-beginner' : (${s.level != null and s.level.name() == 'ADVANCED'} ? 'badge-advanced' : 'badge-intermediate')"
+                        th:text="${s.level != null ? s.level : '—'}">Level</span></td>
+              <td th:text="${s.linkedCourse != null ? s.linkedCourse : '—'}">Course</td>
+              <td><span style="font-size:0.78rem;color:var(--diu-gray)" th:text="${s.linkedProjectId != null ? s.linkedProjectId : '—'}">Proj</span></td>
+              <td>
+                <span th:if="${s.verified}" class="badge badge-verified">✓ Verified</span>
+                <span th:unless="${s.verified}" class="badge badge-unverified">Pending</span>
+              </td>
+              <td>
+                <div class="actions" th:if="${!s.verified}">
+                  <a th:href="@{/student/skills/{id}/request-endorsement(id=${s.id})}"
+                     class="btn btn-primary btn-sm" title="Ask a teacher to verify this skill">
+                     ✓ Request Endorsement
+                  </a>
+                  <a th:href="@{/student/skills/edit/{id}(id=${s.id})}" class="btn btn-secondary btn-sm">Edit</a>
+                  <form th:action="@{/student/skills/delete/{id}(id=${s.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete?')">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                </div>
+                <span th:if="${s.verified}" style="font-size:0.75rem;color:var(--diu-gray)">✓ Endorsed</span>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

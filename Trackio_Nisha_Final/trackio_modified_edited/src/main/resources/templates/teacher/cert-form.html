@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><title>Certification Form</title><link rel="stylesheet" th:href="@{/css/main.css}"/></head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('certs')}"></div>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title"><h1 th:text="${cert.id != null} ? 'Edit Certification' : 'Add Certification'">Form</h1></div>
+      <div class="topbar-actions"><a th:href="@{/teacher/certifications}" class="btn btn-secondary">← Back</a></div>
+    </div>
+    <div class="content-area">
+      <div class="card" style="max-width:700px">
+        <form th:action="${cert.id != null} ? @{/teacher/certifications/update/{id}(id=${cert.id})} : @{/teacher/certifications/save}"
+              th:object="${cert}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <div class="form-grid">
+            <div class="form-group form-full"><label>Certificate Title *</label><input type="text" th:field="*{title}" required/></div>
+            <div class="form-group form-full">
+              <label>Student *</label>
+              <select name="studentId" required>
+                <option value="">-- Select Student --</option>
+                <option th:each="s : ${students}" th:value="${s.id}" th:text="${s.name}"
+                        th:selected="${cert.student != null and cert.student.id == s.id}">S</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Issuing Organization</label><input type="text" th:field="*{issuingOrganization}"/></div>
+            <div class="form-group"><label>Issue Date</label><input type="date" th:field="*{issueDate}"/></div>
+            <div class="form-group"><label>Expiry Date</label><input type="date" th:field="*{expiryDate}"/></div>
+            <div class="form-group"><label>Certificate Link</label><input type="url" th:field="*{certificateLink}"/></div>
+            <div class="form-group form-full">
+              <label>Verified by Teacher</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="verifiedParam" value="yes" th:checked="${cert.verified}"/> Yes
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="verifiedParam" value="no" th:checked="${!cert.verified}"/> No
+                </label>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary" th:text="${cert.id != null} ? 'Update' : 'Save'">Save</button>
+            <a th:href="@{/teacher/certifications}" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Your CV — Trackio-DIU</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <style>
+
+    /* ═══════════════════════════════════════════════════
+       SCREEN SHELL
+    ═══════════════════════════════════════════════════ */
+    body  { background: #13162b; margin: 0; padding: 0; }
+    .cv-screen-wrap { background: #13162b; padding: 24px 16px 60px; min-height: 100vh; }
+
+    .cv-toolbar {
+      display: flex; gap: 10px; justify-content: flex-end;
+      max-width: 794px; margin: 0 auto 16px;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       A4 PAPER — screen view
+       794px wide × 1123px tall (96 dpi approximation of 210mm×297mm)
+    ═══════════════════════════════════════════════════ */
+    .cv-paper {
+      width: 794px;
+      height: 1123px;          /* fixed A4 height — forces single page */
+      overflow: hidden;        /* nothing spills below */
+      margin: 0 auto;
+      background: #ffffff;
+      color: #1a1a2e;
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      font-size: 8.6pt;
+      line-height: 1.42;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.65);
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       HEADER BAND
+    ═══════════════════════════════════════════════════ */
+    .cv-header-band {
+      background: #0b2545;
+      color: #ffffff;
+      padding: 20px 30px 17px 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .cv-header-left { flex: 1; min-width: 0; }
+
+    .cv-name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 24pt;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 2px 0;
+      letter-spacing: 0.03em;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .cv-title-tag {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #90c2ff;
+      letter-spacing: 0.08em;
+      margin-bottom: 9px;
+      text-transform: uppercase;
+    }
+
+    /* Contact row — white text on navy, fully visible */
+    .cv-contact-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 14px;
+      font-size: 7.8pt;
+      color: #e0ecff;
+    }
+    .cv-contact-row .ci {
+      display: flex; align-items: center; gap: 5px;
+      color: #e0ecff;
+    }
+    .cv-contact-row .ci i  { font-size: 7.5pt; color: #90c2ff; flex-shrink: 0; }
+    .cv-contact-row .ci a  { color: #e0ecff; text-decoration: none; }
+    .cv-contact-row .ci a:hover { color: #ffffff; text-decoration: underline; }
+
+    /* Photo */
+    .cv-photo-wrap  { flex-shrink: 0; }
+    .cv-photo {
+      width: 84px; height: 84px;
+      object-fit: cover; object-position: center top;
+      border: 2.5px solid rgba(255,255,255,0.30);
+      border-radius: 5px; display: block;
+    }
+    .cv-photo-initials {
+      width: 84px; height: 84px;
+      background: rgba(255,255,255,0.10);
+      border: 2.5px solid rgba(255,255,255,0.30);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26pt; font-weight: 700; color: #ffffff;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       TWO-COLUMN BODY
+    ═══════════════════════════════════════════════════ */
+    .cv-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;   /* keep inside A4 */
+    }
+
+    /* LEFT SIDEBAR */
+    .cv-sidebar {
+      width: 198px;
+      flex-shrink: 0;
+      background: #f0f4fb;
+      border-right: 1px solid #d4ddf0;
+      padding: 14px 15px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    /* RIGHT MAIN */
+    .cv-main {
+      flex: 1;
+      padding: 14px 22px 14px 18px;
+      box-sizing: border-box;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SECTION TITLES
+    ═══════════════════════════════════════════════════ */
+    .cv-sec {
+      margin-bottom: 10px;
+    }
+
+    .cv-sec-title {
+      font-size: 6.8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: #0b2545;
+      margin: 0 0 5px 0;
+      padding-bottom: 3px;
+      border-bottom: 1.8px solid #0b2545;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SIDEBAR — SKILLS
+    ═══════════════════════════════════════════════════ */
+    .cv-skill-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .cv-skill-tag {
+      background: #dce7f7;
+      border: 1px solid #b8cfe8;
+      border-radius: 3px;
+      padding: 1.5px 6px;
+      font-size: 7.2pt;
+      color: #0b2545;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SIDEBAR — EDUCATION
+    ═══════════════════════════════════════════════════ */
+    .cv-edu-degree  { font-size: 8pt; font-weight: 700; color: #0b2545; line-height: 1.3; }
+    .cv-edu-school  { font-size: 7.5pt; color: #334155; margin-top: 1px; }
+    .cv-edu-year    { font-size: 7pt; color: #64748b; margin-top: 1px; font-style: italic; }
+
+    /* ═══════════════════════════════════════════════════
+       SIDEBAR — CREDENTIALS
+    ═══════════════════════════════════════════════════ */
+    .cv-cred-item {
+      font-size: 7.3pt;
+      color: #1e293b;
+      padding: 3px 0;
+      border-bottom: 1px dashed #c4cfe0;
+      line-height: 1.4;
+    }
+    .cv-cred-item:last-child { border-bottom: none; }
+
+    /* ═══════════════════════════════════════════════════
+       MAIN — PROFESSIONAL SUMMARY
+    ═══════════════════════════════════════════════════ */
+    .cv-summary-text {
+      font-size: 8.2pt;
+      color: #1e293b;
+      line-height: 1.55;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       MAIN — EXPERIENCE
+    ═══════════════════════════════════════════════════ */
+    .cv-exp-item  { margin-bottom: 8px; }
+    .cv-exp-head  {
+      display: flex; justify-content: space-between;
+      align-items: baseline; gap: 8px;
+    }
+    .cv-exp-role    { font-size: 8.8pt; font-weight: 700; color: #0b2545; }
+    .cv-exp-period  { font-size: 7.3pt; color: #64748b; white-space: nowrap; font-style: italic; }
+    .cv-exp-company { font-size: 8pt; color: #3b5c8e; font-weight: 600; margin-bottom: 2px; }
+    .cv-exp-bullets { margin: 2px 0 0 13px; padding: 0; }
+    .cv-exp-bullets li {
+      font-size: 7.8pt; color: #1e293b;
+      margin-bottom: 1.5px; line-height: 1.42;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       MAIN — PROJECTS
+    ═══════════════════════════════════════════════════ */
+    .cv-proj-list { list-style: none; margin: 0; padding: 0; }
+    .cv-proj-item { margin-bottom: 7px; display: flex; gap: 7px; align-items: flex-start; }
+
+    .cv-proj-badge {
+      flex-shrink: 0;
+      width: 15px; height: 15px;
+      background: #0b2545;
+      color: #ffffff;
+      border-radius: 50%;
+      font-size: 6.5pt;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+
+    .cv-proj-body { flex: 1; min-width: 0; }
+
+    .cv-proj-top {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 8px;
+    }
+    .cv-proj-name { font-size: 8.6pt; font-weight: 700; color: #0b2545; }
+    .cv-proj-link a { font-size: 7.3pt; color: #2563eb; text-decoration: none; white-space: nowrap; }
+    .cv-proj-link a:hover { text-decoration: underline; }
+    .cv-proj-desc {
+      font-size: 7.8pt; color: #334155;
+      margin-top: 1.5px; line-height: 1.42;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       DIVIDER between sidebar sections
+    ═══════════════════════════════════════════════════ */
+    .cv-sdiv {
+      border: none;
+      border-top: 1px solid #c8d6e8;
+      margin: 8px 0;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       PRINT — TRUE A4, SINGLE PAGE, COLORS PRESERVED
+    ═══════════════════════════════════════════════════ */
+    @media print {
+      body { background: #ffffff !important; margin: 0 !important; }
+      .no-print { display: none !important; }
+      .cv-screen-wrap { background: #ffffff !important; padding: 0 !important; }
+
+      .cv-paper {
+        width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        font-size: 8.6pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      /* Force background colors to print */
+      .cv-header-band {
+        background: #0b2545 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .cv-sidebar {
+        background: #f0f4fb !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .cv-skill-tag {
+        background: #dce7f7 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .cv-proj-badge {
+        background: #0b2545 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .cv-photo, .cv-photo-initials {
+        width: 22mm !important;
+        height: 22mm !important;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="cv-screen-wrap">
+
+  <!-- Toolbar -->
+  <div class="cv-toolbar no-print">
+    <a th:href="@{/student/cv}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i>&nbsp; Back
+    </a>
+    <button onclick="window.print()" class="btn btn-primary">
+      <i class="fas fa-print"></i>&nbsp; Print / Save as PDF
+    </button>
+  </div>
+
+  <!-- ============================================================
+       DETERMINISTIC MODE
+  ============================================================ -->
+  <div class="cv-paper" th:if="${cv != null}">
+
+    <!-- ── HEADER BAND ─────────────────────────────────────────── -->
+    <div class="cv-header-band">
+      <div class="cv-header-left">
+
+        <div class="cv-name" th:text="${cv.fullName}">FULL NAME</div>
+
+        <div class="cv-title-tag"
+             th:if="${cv.title != null and !#strings.isEmpty(cv.title)}"
+             th:text="${cv.title}">Professional Title</div>
+
+        <div class="cv-contact-row">
+          <span class="ci" th:if="${cv.location != null and !#strings.isEmpty(cv.location)}">
+            <i class="fas fa-map-marker-alt"></i>
+            <span th:text="${cv.location}"></span>
+          </span>
+          <span class="ci" th:if="${cv.phone != null and !#strings.isEmpty(cv.phone)}">
+            <i class="fas fa-phone"></i>
+            <span th:text="${cv.phone}"></span>
+          </span>
+          <span class="ci" th:if="${cv.email != null and !#strings.isEmpty(cv.email)}">
+            <i class="fas fa-envelope"></i>
+            <a th:href="|mailto:${cv.email}|" th:text="${cv.email}"></a>
+          </span>
+          <span class="ci" th:if="${cv.portfolioUrl != null and !#strings.isEmpty(cv.portfolioUrl)}">
+            <i class="fas fa-globe"></i>
+            <a th:href="${cv.portfolioUrl}" target="_blank">Portfolio</a>
+          </span>
+          <span class="ci" th:if="${cv.linkedinUrl != null and !#strings.isEmpty(cv.linkedinUrl)}">
+            <i class="fab fa-linkedin"></i>
+            <a th:href="${cv.linkedinUrl}" target="_blank">LinkedIn</a>
+          </span>
+          <span class="ci" th:if="${cv.githubUrl != null and !#strings.isEmpty(cv.githubUrl)}">
+            <i class="fab fa-github"></i>
+            <a th:href="${cv.githubUrl}" target="_blank">GitHub</a>
+          </span>
+        </div>
+      </div>
+
+      <!-- Profile photo -->
+      <div class="cv-photo-wrap"
+           th:with="hasPhoto=${student != null and student.profilePhotoUrl != null and !#strings.isEmpty(student.profilePhotoUrl)}">
+        <img th:if="${hasPhoto}" class="cv-photo"
+             th:src="${student.profilePhotoUrl}" alt="Profile Photo"/>
+        <div th:unless="${hasPhoto}" class="cv-photo-initials"
+             th:text="${cv.fullName != null and !cv.fullName.equals('—') ? cv.fullName.substring(0,1) : 'S'}">S</div>
+      </div>
+    </div>
+
+    <!-- ── BODY ────────────────────────────────────────────────── -->
+    <div class="cv-body">
+
+      <!-- LEFT SIDEBAR -->
+      <div class="cv-sidebar">
+
+        <!-- TECHNICAL SKILLS -->
+        <div class="cv-sec" th:if="${cv.competencies != null and !cv.competencies.isEmpty()}">
+          <div class="cv-sec-title">Technical Skills</div>
+          <div class="cv-skill-tags">
+            <span th:each="skill : ${cv.competencies.split(',')}"
+                  th:if="${!#strings.isEmpty(#strings.trim(skill))}"
+                  th:text="${#strings.trim(skill)}"
+                  class="cv-skill-tag">Skill</span>
+          </div>
+        </div>
+
+        <hr class="cv-sdiv" th:if="${!cv.education.isEmpty() and cv.competencies != null and !cv.competencies.isEmpty()}"/>
+
+        <!-- EDUCATION -->
+        <div class="cv-sec" th:if="${!cv.education.isEmpty()}">
+          <div class="cv-sec-title">Education</div>
+          <div th:each="e : ${cv.education}" style="margin-bottom:6px;">
+            <div class="cv-edu-degree" th:text="${e.degree}">Degree</div>
+            <div class="cv-edu-school" th:text="${e.institution}">University</div>
+            <div class="cv-edu-year"   th:if="${e.year}" th:text="${e.year}">Year</div>
+          </div>
+        </div>
+
+        <hr class="cv-sdiv" th:if="${!cv.credentials.isEmpty() and !cv.education.isEmpty()}"/>
+
+        <!-- CERTIFICATIONS & ACHIEVEMENTS -->
+        <div class="cv-sec" th:if="${!cv.credentials.isEmpty()}">
+          <div class="cv-sec-title">Certifications &amp; Achievements</div>
+          <div th:each="c : ${cv.credentials}" class="cv-cred-item"
+               th:text="${c}">Credential</div>
+        </div>
+
+      </div><!-- /sidebar -->
+
+      <!-- RIGHT MAIN -->
+      <div class="cv-main">
+
+        <!-- PROFESSIONAL SUMMARY -->
+        <div class="cv-sec" th:if="${!cv.summary.isEmpty()}">
+          <div class="cv-sec-title">Professional Summary</div>
+          <div class="cv-summary-text">
+            <span th:each="s,iter : ${cv.summary}">
+              <span th:text="${s}"></span><span th:if="${!iter.last}"> </span>
+            </span>
+          </div>
+        </div>
+
+        <!-- PROFESSIONAL EXPERIENCE -->
+        <div class="cv-sec" th:if="${!cv.experience.isEmpty()}"
+             style="margin-top:8px;">
+          <div class="cv-sec-title">Professional Experience</div>
+          <div class="cv-exp-item" th:each="exp : ${cv.experience}">
+            <div class="cv-exp-head">
+              <div class="cv-exp-role"   th:text="${exp.title}">Role</div>
+              <div class="cv-exp-period" th:text="${exp.period}">Period</div>
+            </div>
+            <div class="cv-exp-company" th:if="${exp.company}" th:text="${exp.company}">Company</div>
+            <ul class="cv-exp-bullets" th:if="${!exp.bullets.isEmpty()}">
+              <li th:each="b : ${exp.bullets}" th:text="${b}">Bullet</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- SELECTED PROJECTS -->
+        <div class="cv-sec" th:if="${!cv.projects.isEmpty()}"
+             style="margin-top:8px;">
+          <div class="cv-sec-title">Selected Projects</div>
+          <ul class="cv-proj-list">
+            <li th:each="p,iter : ${cv.projects}" class="cv-proj-item">
+              <div class="cv-proj-badge" th:text="${iter.index + 1}">1</div>
+              <div class="cv-proj-body">
+                <div class="cv-proj-top">
+                  <span class="cv-proj-name" th:text="${p.title}">Title</span>
+                  <span class="cv-proj-link"
+                        th:if="${student != null and student.githubUrl != null and !#strings.isEmpty(student.githubUrl)}">
+                    <a th:href="${student.githubUrl}" target="_blank">GitHub ↗</a>
+                  </span>
+                </div>
+                <div class="cv-proj-desc"
+                     th:if="${p.bullet != null and !#strings.isEmpty(p.bullet)}"
+                     th:text="${p.bullet}"></div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- EXTRA INVOLVEMENT -->
+        <div class="cv-sec"
+             th:if="${student != null and student.bio != null and !#strings.isEmpty(student.bio)}"
+             style="margin-top:8px;">
+          <div class="cv-sec-title">Extra Involvement</div>
+          <div style="font-size:7.8pt;color:#334155;line-height:1.45;"
+               th:text="${student.bio}">Bio</div>
+        </div>
+
+      </div><!-- /main -->
+    </div><!-- /body -->
+  </div><!-- /cv-paper -->
+
+  <!-- ============================================================
+       AI MODE
+  ============================================================ -->
+  <div class="cv-paper" th:if="${aiText != null}" style="padding:32px 36px;">
+    <pre style="white-space:pre-wrap;font-family:'Inter',Arial,sans-serif;font-size:8.6pt;line-height:1.6;color:#111111;margin:0;"
+         th:text="${aiText}"></pre>
+  </div>
+
+</div><!-- /screen-wrap -->
+</body>
+</html>

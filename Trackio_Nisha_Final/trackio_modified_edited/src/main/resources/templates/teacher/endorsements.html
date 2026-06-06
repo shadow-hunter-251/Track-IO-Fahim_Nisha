@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Endorsement Queue — Trackio-DIU</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <style>
+    .endorse-card {
+      background: var(--shadow);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+    }
+    .endorse-card.pending { border-left: 4px solid #f7d488; }
+    .endorse-head {
+      display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
+      margin-bottom: 14px;flex-wrap:wrap
+    }
+    .endorse-skill {
+      font-size:1.15rem;font-weight:700;color:var(--text-primary);
+      letter-spacing:-0.01em
+    }
+    .endorse-student {
+      font-size:0.85rem;color:var(--diu-blue);margin-top:2px
+    }
+    .endorse-note {
+      font-size:0.88rem;color:var(--text-secondary);
+      background: rgba(255,255,255,0.025);
+      border-left: 3px solid var(--diu-blue);
+      padding: 12px 16px;border-radius: 4px;margin-top: 12px;line-height:1.55
+    }
+    .endorse-meta { display:flex;gap:18px;font-size:0.78rem;color:var(--diu-gray);margin-top:10px;flex-wrap:wrap }
+    .endorse-actions {
+      display:flex;gap:10px;margin-top:16px;padding-top:14px;
+      border-top:1px solid var(--border);flex-wrap:wrap
+    }
+    .inline-form {
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;flex:1;min-width:240px
+    }
+    .inline-form select, .inline-form input[type=text] {
+      background: var(--field-bg, var(--shadow));
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 7px 12px;border-radius:6px;font-size:0.85rem;flex:1;min-width:140px
+    }
+    .badge-pending  { background: rgba(247,212,136,0.15); color: #f7d488; }
+    .badge-approved { background: rgba(57,181,74,0.12);   color: #39B54A; }
+    .badge-declined { background: rgba(237,28,36,0.08); color: #ED1C24; }
+    .tab-bar { display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border) }
+    .tab-bar a {
+      padding:10px 18px;color:var(--diu-gray);text-decoration:none;
+      font-size:0.88rem;font-weight:600;border-bottom:2px solid transparent;cursor:pointer
+    }
+    .tab-bar a.active { color:var(--diu-blue);border-bottom-color:var(--diu-blue) }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+  <div th:replace="~{fragments/teacher-sidebar :: sidebar('endorsements')}"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Endorsement Queue</h1>
+        <p>Review and verify skill claims from your students</p>
+      </div>
+      <div class="topbar-actions">
+        <span style="font-size:0.85rem;color:var(--diu-blue)">
+          <strong th:text="${#lists.size(pending)}">0</strong> pending
+        </span>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div th:if="${success}" class="alert alert-success">✓ &nbsp;<span th:text="${success}"></span></div>
+      <div th:if="${error}" class="alert alert-danger">✗ &nbsp;<span th:text="${error}"></span></div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <a class="active" onclick="showTab('pendingTab', this)">
+          Pending (<span th:text="${#lists.size(pending)}">0</span>)
+        </a>
+        <a onclick="showTab('historyTab', this)">
+          History (<span th:text="${#lists.size(history)}">0</span>)
+        </a>
+      </div>
+
+      <!-- PENDING -->
+      <div id="pendingTab">
+        <div th:if="${#lists.isEmpty(pending)}" class="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>Inbox zero</h3>
+          <p>You have no pending endorsement requests. Students will appear here when they ask for verification.</p>
+        </div>
+
+        <div th:each="e : ${pending}" class="endorse-card pending">
+          <div class="endorse-head">
+            <div>
+              <div class="endorse-skill" th:text="${e.skillName}">Skill</div>
+              <div class="endorse-student">
+                Requested by <strong th:text="${e.studentName}">Student</strong>
+              </div>
+            </div>
+            <span class="badge badge-pending">PENDING</span>
+          </div>
+
+          <div th:if="${e.studentNote != null and !#strings.isEmpty(e.studentNote)}" class="endorse-note">
+            <strong>Student's note:</strong>
+            <span th:text="${e.studentNote}"></span>
+          </div>
+
+          <div class="endorse-meta">
+            <span>📅 Requested
+              <span th:text="${#temporals.format(e.requestedAt, 'dd MMM yyyy, HH:mm')}">date</span>
+            </span>
+            <span th:if="${e.evidenceProjectId != null}">
+              · Evidence project: <code th:text="${e.evidenceProjectId}">PRJ-1</code>
+            </span>
+          </div>
+
+          <div class="endorse-actions">
+
+            <!-- Approve form -->
+            <form th:action="@{/teacher/endorsements/{id}/approve(id=${e.id})}"
+                  method="post" class="inline-form">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <select name="proficiency" required>
+                <option value="">Set level…</option>
+                <option value="BEGINNER">Beginner</option>
+                <option value="PROFICIENT">Proficient</option>
+                <option value="ADVANCED">Advanced</option>
+                <option value="EXPERT">Expert</option>
+              </select>
+              <input type="text" name="teacherNote" placeholder="Optional note for student"/>
+              <button class="btn btn-primary btn-sm" type="submit">✓ Approve</button>
+            </form>
+
+            <!-- Decline form -->
+            <form th:action="@{/teacher/endorsements/{id}/decline(id=${e.id})}"
+                  method="post" style="display:inline"
+                  onsubmit="return promptForReason(this)">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <input type="hidden" name="teacherNote" value=""/>
+              <button class="btn btn-danger btn-sm" type="submit">✗ Decline</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="historyTab" style="display:none">
+        <div th:if="${#lists.isEmpty(history)}" class="empty-state">
+          <div class="empty-icon">⏳</div>
+          <h3>No history yet</h3>
+          <p>Your endorsement decisions will appear here.</p>
+        </div>
+
+        <div th:each="e : ${history}" class="endorse-card">
+          <div class="endorse-head">
+            <div>
+              <div class="endorse-skill" th:text="${e.skillName}">Skill</div>
+              <div class="endorse-student">
+                For <strong th:text="${e.studentName}">Student</strong>
+              </div>
+            </div>
+            <span class="badge"
+                  th:classappend="${e.status.name() == 'APPROVED'} ? 'badge-approved' : 'badge-declined'"
+                  th:text="${e.status}">APPROVED</span>
+          </div>
+
+          <div th:if="${e.status.name() == 'APPROVED' and e.proficiency != null}"
+               class="endorse-note" style="border-left-color:var(--diu-green)">
+            <strong>Endorsed at level:</strong> <span th:text="${e.proficiency}">PROFICIENT</span>
+            <span th:if="${e.teacherNote != null and !#strings.isEmpty(e.teacherNote)}">
+              — <em th:text="${e.teacherNote}"></em>
+            </span>
+          </div>
+
+          <div th:if="${e.status.name() == 'DECLINED' and e.teacherNote != null and !#strings.isEmpty(e.teacherNote)}"
+               class="endorse-note" style="border-left-color:#ED1C24">
+            <strong>Reason given:</strong> <span th:text="${e.teacherNote}"></span>
+          </div>
+
+          <div class="endorse-meta">
+            <span>Responded
+              <span th:text="${e.respondedAt != null ? #temporals.format(e.respondedAt, 'dd MMM yyyy, HH:mm') : '—'}">date</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(id, el) {
+    document.getElementById('pendingTab').style.display = (id === 'pendingTab') ? '' : 'none';
+    document.getElementById('historyTab').style.display = (id === 'historyTab') ? '' : 'none';
+    document.querySelectorAll('.tab-bar a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+  }
+  function promptForReason(form) {
+    const reason = prompt('Reason for declining (optional, helps the student):');
+    if (reason === null) return false;  // Cancel
+    form.querySelector('input[name=teacherNote]').value = reason || '';
+    return true;
+  }
+</script>
+</body>
+</html>

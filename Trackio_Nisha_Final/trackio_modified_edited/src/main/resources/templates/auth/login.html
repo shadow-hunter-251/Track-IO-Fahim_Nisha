@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — Trackio-DIU | DIU</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --diu-blue:       #034EA2;
+      --diu-blue-dark:  #023a7a;
+      --diu-blue-light: #0560c4;
+      --diu-blue-pale:  #e8f0fb;
+      --diu-green:      #39B54A;
+      --diu-green-dark: #2a8c38;
+      --diu-gray:       #636466;
+      --diu-red:        #ED1C24;
+      --diu-red-pale:   #fde8e9;
+      --void-bg:        #f4f6fb;
+      --panel-bg:       #ffffff;
+      --field-bg:       #f4f6fb;
+      --text-main:      #1a1d23;
+      --text-soft:      #3d4048;
+      --text-dim:       #636466;
+      --border:         rgba(3,78,162,0.15);
+      --border-strong:  rgba(3,78,162,0.3);
+      --glow:           0 4px 20px rgba(3,78,162,0.22);
+      --transition:     all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    body {
+      background-color: var(--void-bg);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+      color: var(--text-main);
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--diu-blue), var(--diu-green));
+      z-index: 1000;
+    }
+
+    .login-card {
+      display: flex; width: 920px; min-height: 580px;
+      background: var(--panel-bg);
+      border-radius: 20px; position: relative; z-index: 10;
+      border: 1px solid rgba(3,78,162,0.12);
+      box-shadow: 0 20px 60px rgba(3,78,162,0.14);
+      overflow: hidden;
+    }
+    .login-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--diu-blue), var(--diu-green));
+      z-index: 5;
+    }
+
+    .login-left {
+      flex: 1.2; padding: 52px 56px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+
+    .brand-block { margin-bottom: 28px; }
+    .brand-block .brand {
+      font-size: 1.8rem; font-weight: 800;
+      letter-spacing: -0.025em; color: var(--diu-blue);
+      text-decoration: none; line-height: 1;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .brand-block .brand .brand-dot { color: var(--diu-green); }
+    .brand-block .tagline {
+      font-size: 0.82rem; color: var(--text-dim);
+      margin-top: 6px; font-weight: 500;
+    }
+
+    h2.signin-h {
+      font-size: 1.5rem; font-weight: 700;
+      color: var(--text-main); margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+    .signin-sub {
+      color: var(--text-soft); font-size: 0.92rem; margin-bottom: 26px;
+    }
+
+    .alert {
+      padding: 12px 16px; font-size: 0.88rem; margin-bottom: 18px;
+      background: var(--diu-red-pale);
+      border: 1px solid rgba(237,28,36,0.25);
+      border-left: 3px solid var(--diu-red);
+      color: var(--diu-red); border-radius: 8px;
+      display: flex; align-items: center; gap: 10px; font-weight: 500;
+    }
+    .alert.success {
+      background: #eaf8ec;
+      border-color: rgba(57,181,74,0.25);
+      border-left-color: var(--diu-green);
+      color: var(--diu-green-dark);
+    }
+    .alert.info {
+      background: var(--diu-blue-pale);
+      border-color: rgba(3,78,162,0.2);
+      border-left-color: var(--diu-blue);
+      color: var(--diu-blue-dark);
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block; font-size: 0.83rem;
+      color: var(--text-main); margin-bottom: 8px; font-weight: 600;
+    }
+
+    .input-wrap { position: relative; }
+    .input-wrap input {
+      width: 100%;
+      background: var(--field-bg);
+      border: 1.5px solid rgba(3,78,162,0.18);
+      border-radius: 10px;
+      padding: 13px 16px 13px 44px;
+      color: var(--text-main);
+      font-size: 0.94rem; font-weight: 500;
+      outline: none; transition: var(--transition);
+    }
+    .input-wrap.has-toggle input { padding-right: 48px; }
+    .input-wrap input::placeholder { color: #9a9c9e; font-weight: 400; }
+    .input-wrap input:focus {
+      border-color: var(--diu-blue);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(3,78,162,0.12);
+    }
+    .input-wrap .icon-left {
+      position: absolute; left: 16px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--diu-gray); font-size: 0.95rem; pointer-events: none;
+    }
+    .pwd-toggle {
+      position: absolute; right: 14px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--text-dim); font-size: 1rem;
+      padding: 4px; line-height: 1;
+      transition: color 0.15s ease;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pwd-toggle:hover { color: var(--diu-blue); }
+
+    .btn-signin {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--diu-blue) 0%, var(--diu-blue-light) 100%);
+      color: var(--panel-bg); border: none; border-radius: 10px;
+      font-size: 0.96rem; font-weight: 700; cursor: pointer;
+      transition: var(--transition); margin-top: 6px;
+      box-shadow: 0 8px 24px rgba(3,78,162,0.22);
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; font-family: inherit;
+    }
+    .btn-signin:hover {
+      box-shadow: 0 12px 32px rgba(3,78,162,0.35);
+      transform: translateY(-1px);
+      background: linear-gradient(135deg, var(--diu-blue-dark) 0%, var(--diu-blue) 100%);
+    }
+
+    .auth-footer {
+      margin-top: 20px; text-align: center;
+      font-size: 0.88rem; color: var(--text-soft);
+    }
+    .auth-footer a {
+      color: var(--diu-blue); text-decoration: none;
+      font-weight: 600; margin-left: 4px;
+    }
+    .auth-footer a:hover { text-decoration: underline; }
+
+    /* Right panel */
+    .login-right {
+      flex: 1;
+      background: linear-gradient(140deg, var(--diu-blue-dark) 0%, var(--diu-blue) 50%, #0560c4 100%);
+      display: flex; flex-direction: column;
+      align-items: flex-start; justify-content: center;
+      padding: 52px 46px; position: relative;
+      border-left: 1px solid rgba(3,78,162,0.15); overflow: hidden;
+    }
+    .login-right::after {
+      content: ''; position: absolute;
+      width: 280px; height: 280px; bottom: -80px; right: -80px;
+      background: radial-gradient(circle, rgba(57,181,74,0.2) 0%, transparent 70%);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+    .login-right::before {
+      content: ''; position: absolute;
+      width: 200px; height: 200px; top: -50px; left: -50px;
+      background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .right-content { position: relative; z-index: 2; }
+    .right-content h2 {
+      font-size: 2.3rem; font-weight: 800; line-height: 1.1;
+      letter-spacing: -0.03em; color: #ffffff; margin-bottom: 14px;
+    }
+    .right-content h2 span {
+      color: var(--diu-green);
+    }
+    .right-content p {
+      font-size: 0.95rem; color: rgba(255,255,255,0.78);
+      line-height: 1.6; max-width: 300px; margin-bottom: 28px;
+    }
+    .feature-list { list-style: none; margin-bottom: 32px; }
+    .feature-list li {
+      display: flex; align-items: center; gap: 10px;
+      color: rgba(255,255,255,0.82); font-size: 0.88rem;
+      margin-bottom: 12px; font-weight: 500;
+    }
+    .feature-list li i {
+      width: 22px; height: 22px;
+      background: rgba(57,181,74,0.2); color: var(--diu-green);
+      border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 0.7rem; flex-shrink: 0;
+      border: 1px solid rgba(57,181,74,0.4);
+    }
+    .signup-ctas { display: flex; flex-direction: column; gap: 10px; }
+    .signup-ctas a {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 11px 16px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px; color: #ffffff;
+      text-decoration: none; font-size: 0.88rem; font-weight: 600;
+      transition: var(--transition);
+    }
+    .signup-ctas a:hover {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(57,181,74,0.5); transform: translateX(3px);
+    }
+    .signup-ctas a i { color: var(--diu-green); width: 16px; }
+
+    @media (max-width: 880px) {
+      .login-card { flex-direction: column; width: 100%; max-width: 500px; min-height: auto; }
+      .login-left { padding: 36px 28px; }
+      .login-right { padding: 32px 28px; border-left: none; border-top: 1px solid rgba(255,255,255,0.15); }
+      .right-content h2 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-card">
+
+  <!-- LEFT: Sign in form -->
+  <div class="login-left">
+    <div class="brand-block">
+      <a th:href="@{/}" class="brand">Trackio-<span class="brand-dot">DIU</span></a>
+      <div class="tagline">Daffodil International University · Portfolio &amp; Skill Tracker</div>
+    </div>
+
+    <h2 class="signin-h">Welcome back</h2>
+    <p class="signin-sub">Sign in to continue to your dashboard.</p>
+
+    <div th:if="${param.logout}" class="alert info">
+      <i class="fas fa-sign-out-alt"></i>
+      You have been signed out successfully.
+    </div>
+
+    <div th:if="${param.error}" class="alert">
+      <i class="fas fa-exclamation-triangle"></i>
+      Invalid username or password. Please try again.
+    </div>
+
+    <div th:if="${param.registered}" class="alert success">
+      <i class="fas fa-check-circle"></i>
+      Account created — please sign in to continue.
+    </div>
+
+    <form th:action="@{/login}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <div class="input-wrap">
+          <i class="fas fa-user icon-left"></i>
+          <input type="text" id="username" name="username"
+                 placeholder="Enter your username" required autocomplete="username"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrap has-toggle">
+          <i class="fas fa-lock icon-left"></i>
+          <input type="password" id="password" name="password"
+                 placeholder="••••••••" required autocomplete="current-password"/>
+          <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="Show/hide password">
+            <i class="fas fa-eye" id="pwdToggleIcon"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-signin">
+        <i class="fas fa-arrow-right-to-bracket"></i>
+        Sign in
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      New to Trackio-DIU?
+      <a th:href="@{/signup/student}">Create a Student account</a>
+    </div>
+  </div>
+
+  <!-- RIGHT: Info panel -->
+  <div class="login-right">
+    <div class="right-content">
+      <h2>Welcome to<br><span>Trackio-DIU</span></h2>
+      <p>Showcase your projects, certifications, and skill journey — built for DIU students and faculty.</p>
+
+      <ul class="feature-list">
+        <li><i class="fas fa-check"></i> Track projects, internships &amp; achievements</li>
+        <li><i class="fas fa-check"></i> Map your skills to courses &amp; outcomes</li>
+        <li><i class="fas fa-check"></i> Generate portfolio reports instantly</li>
+      </ul>
+
+      <div class="signup-ctas">
+        <a th:href="@{/signup/student}">
+          <i class="fas fa-graduation-cap"></i>
+          Register as Student
+        </a>
+        <a th:href="@{/signup/teacher}">
+          <i class="fas fa-chalkboard-teacher"></i>
+          Register as Teacher
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    const pwdInput  = document.getElementById('password');
+    const toggle    = document.getElementById('pwdToggle');
+    const toggleIcon = document.getElementById('pwdToggleIcon');
+
+    toggle.addEventListener('click', function () {
+      const isHidden = pwdInput.type === 'password';
+      pwdInput.type = isHidden ? 'text' : 'password';
+      toggleIcon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+    });
+  })();
+</script>
+
+</body>
+</html>
